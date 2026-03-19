@@ -11,25 +11,59 @@ export default function TabLayout() {
 
   return (
     <Tabs
+    initialRouteName="pickups"
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
       }}>
       <Tabs.Screen
-        name="index"
+        name="pickups"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Pickups',
+          tabBarIcon: ({ color }) => (
+          <IconSymbol size={28} name="soccerball" color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="Rentals"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: "Rentals",
+          tabBarIcon: ({ color }) => (
+          <IconSymbol size={28} name="calendar" color={color} />
+          ),
         }}
       />
+    <Tabs.Screen
+    name="friends"
+    options={{
+      title: "Friends",
+      tabBarIcon: ({ color }) => (
+        <IconSymbol size={28} name="person.2.fill" color={color} />
+      ),
+    }}
+    /> 
+
+    <Tabs.Screen
+    name="messages"
+    options={{
+      title: "Messages",
+      tabBarIcon: ({ color }) => (
+        <IconSymbol size={28} name="message.fill" color={color} />
+      ),
+    }}
+    />
+
+    <Tabs.Screen
+    name="Profile"
+    options={{
+      title: "Profile",
+      tabBarIcon: ({ color }) => (
+        <IconSymbol size={28} name="person.fill" color={color} />
+      ),
+    }}
+    />
     </Tabs>
   );
 }
