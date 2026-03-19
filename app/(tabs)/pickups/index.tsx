@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
 
   cardsWrapper: {
     gap: 14,
-    paddingBottom: 30,
+    paddingBottom: 120,
   },
 
   card: {

@@ -80,7 +80,7 @@ export default function LoginScreen() {
         <View style={styles.shadowWrapper}>
           <Pressable
             style={styles.button}
-            onPress={() => router.replace("/(tabs)")}
+            onPress={() => router.replace("/pickups")}
           >
             <Text style={styles.buttonText}>
               {isSignup ? "Sign Up" : "Login"}
