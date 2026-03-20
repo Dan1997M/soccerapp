@@ -40,6 +40,11 @@ export default function RootLayout() {
         <Stack.Screen name="create-game" />
         <Stack.Screen name="game-details" />
         <Stack.Screen name="profile" />
+        <Stack.Screen name="rental-booking" />
+        <Stack.Screen name="checkout" />
+        <Stack.Screen name="payment" />
+        <Stack.Screen name="player-profile" />
+        <Stack.Screen name="chat" />
         <Stack.Screen name="modal" options={{ presentation: "modal" }} />
       </Stack>
       <StatusBar style="auto" />

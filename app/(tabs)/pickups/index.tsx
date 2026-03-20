@@ -1,5 +1,14 @@
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { router } from "expo-router";
+import { useMemo, useState } from "react";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 const days = [
   { label: "Today", date: "16" },
@@ -14,7 +23,18 @@ const days = [
 
 const locations = ["Hattrick", "Patio", "Oakridge"];
 
-const gamesByLocation = {
+type Game = {
+  id: number;
+  title: string;
+  date: string;
+  time: string;
+  spotsLeft: number;
+  price: string;
+  image: string;
+  joined?: boolean;
+};
+
+const initialGamesByLocation: Record<string, Game[]> = {
   Hattrick: [
     {
       id: 1,
@@ -23,6 +43,8 @@ const gamesByLocation = {
       time: "8:00 PM",
       spotsLeft: 3,
       price: "$10",
+      image: "https://picsum.photos/id/1011/1200/700",
+      joined: false,
     },
     {
       id: 8,
@@ -31,6 +53,8 @@ const gamesByLocation = {
       time: "7:00 PM",
       spotsLeft: 2,
       price: "$10",
+      image: "https://picsum.photos/id/1015/1200/700",
+      joined: false,
     },
     {
       id: 9,
@@ -39,6 +63,8 @@ const gamesByLocation = {
       time: "9:00 PM",
       spotsLeft: 1,
       price: "$10",
+      image: "https://picsum.photos/id/1016/1200/700",
+      joined: false,
     },
     {
       id: 2,
@@ -47,6 +73,8 @@ const gamesByLocation = {
       time: "9:30 PM",
       spotsLeft: 5,
       price: "$12",
+      image: "https://picsum.photos/id/1020/1200/700",
+      joined: false,
     },
     {
       id: 7,
@@ -55,6 +83,8 @@ const gamesByLocation = {
       time: "10:00 AM",
       spotsLeft: 4,
       price: "$9",
+      image: "https://picsum.photos/id/1031/1200/700",
+      joined: false,
     },
   ],
   Patio: [
@@ -65,6 +95,8 @@ const gamesByLocation = {
       time: "7:00 PM",
       spotsLeft: 4,
       price: "$8",
+      image: "https://picsum.photos/id/1035/1200/700",
+      joined: false,
     },
     {
       id: 4,
@@ -73,6 +105,8 @@ const gamesByLocation = {
       time: "8:15 PM",
       spotsLeft: 2,
       price: "$10",
+      image: "https://picsum.photos/id/1040/1200/700",
+      joined: false,
     },
   ],
   Oakridge: [
@@ -83,6 +117,8 @@ const gamesByLocation = {
       time: "6:30 PM",
       spotsLeft: 6,
       price: "$9",
+      image: "https://picsum.photos/id/1043/1200/700",
+      joined: false,
     },
     {
       id: 6,
@@ -91,6 +127,8 @@ const gamesByLocation = {
       time: "10:00 AM",
       spotsLeft: 1,
       price: "$11",
+      image: "https://picsum.photos/id/1050/1200/700",
+      joined: false,
     },
   ],
 };
@@ -114,26 +152,45 @@ export default function PickupsScreen() {
   const [selectedDay, setSelectedDay] = useState("Today");
   const [selectedLocation, setSelectedLocation] = useState("Hattrick");
   const [searchQuery, setSearchQuery] = useState("");
+  const [gamesByLocation] = useState(initialGamesByLocation);
 
-  const filteredGames = gamesByLocation[
-    selectedLocation as keyof typeof gamesByLocation
-  ]
-    .filter((game) => {
-      const matchesDay =
-        selectedDay === "Today"
-          ? game.date === "Today"
-          : game.date === selectedDay;
+  const filteredGames = useMemo(() => {
+    return gamesByLocation[selectedLocation]
+      .filter((game) => {
+        const matchesDay =
+          selectedDay === "Today"
+            ? game.date === "Today"
+            : game.date === selectedDay;
 
-      const query = searchQuery.toLowerCase();
+        const query = searchQuery.toLowerCase();
 
-      const matchesSearch =
-        game.title.toLowerCase().includes(query) ||
-        game.time.toLowerCase().includes(query) ||
-        selectedLocation.toLowerCase().includes(query);
+        const matchesSearch =
+          game.title.toLowerCase().includes(query) ||
+          game.time.toLowerCase().includes(query) ||
+          selectedLocation.toLowerCase().includes(query);
 
-      return matchesDay && matchesSearch;
-    })
-    .sort((a, b) => convertTimeToMinutes(a.time) - convertTimeToMinutes(b.time));
+        return matchesDay && matchesSearch;
+      })
+      .sort(
+        (a, b) => convertTimeToMinutes(a.time) - convertTimeToMinutes(b.time)
+      );
+  }, [gamesByLocation, searchQuery, selectedDay, selectedLocation]);
+
+  const openGameDetails = (game: Game) => {
+    router.push({
+      pathname: "/(tabs)/pickups/[id]",
+      params: {
+        id: game.id.toString(),
+        title: game.title,
+        date: game.date,
+        time: game.time,
+        spotsLeft: game.spotsLeft.toString(),
+        price: game.price,
+        location: selectedLocation,
+        image: game.image,
+      },
+    });
+  };
 
   return (
     <View style={styles.screen}>
@@ -221,7 +278,13 @@ export default function PickupsScreen() {
       >
         {filteredGames.length > 0 ? (
           filteredGames.map((game) => (
-            <View key={game.id} style={styles.card}>
+            <Pressable
+              key={game.id}
+              style={styles.card}
+              onPress={() => openGameDetails(game)}
+            >
+              <Image source={{ uri: game.image }} style={styles.cardImage} />
+
               <View style={styles.cardTopRow}>
                 <Text style={styles.cardTitle}>{game.title}</Text>
                 <Text style={styles.price}>{game.price}</Text>
@@ -232,15 +295,15 @@ export default function PickupsScreen() {
               </Text>
 
               <View style={styles.bottomRow}>
-                <Text style={styles.spotsText}>{game.spotsLeft} spots left</Text>
+                <Text style={styles.spotsText}>
+                  {game.spotsLeft} {game.spotsLeft === 1 ? "spot" : "spots"} left
+                </Text>
 
-                <View style={styles.shadowWrapper}>
-                  <Pressable style={styles.joinButton}>
-                    <Text style={styles.joinButtonText}>Join Game</Text>
-                  </Pressable>
+                <View style={styles.detailsPill}>
+                  <Text style={styles.detailsPillText}>View Details</Text>
                 </View>
               </View>
-            </View>
+            </Pressable>
           ))
         ) : (
           <Text style={styles.noGamesText}>
@@ -396,6 +459,14 @@ const styles = StyleSheet.create({
     padding: 18,
   },
 
+  cardImage: {
+    width: "100%",
+    height: 170,
+    borderRadius: 18,
+    marginBottom: 14,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+
   cardTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -436,26 +507,16 @@ const styles = StyleSheet.create({
     fontFamily: "Afacad",
   },
 
-  shadowWrapper: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-
-  joinButton: {
+  detailsPill: {
     backgroundColor: "#F2DD77",
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
 
-  joinButtonText: {
+  detailsPillText: {
     color: "#1337f6",
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: "AfacadBold",
   },
 

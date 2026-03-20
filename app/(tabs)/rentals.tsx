@@ -49,7 +49,6 @@ export default function RentalsScreen() {
       <Text style={styles.title}>Field Rentals</Text>
       <Text style={styles.subtitle}>Choose a location to view field details</Text>
 
-      {/* LOCATION BUTTONS ABOVE CALENDAR */}
       <View style={styles.locationRow}>
         {locations.map((location) => (
           <Pressable
@@ -74,7 +73,6 @@ export default function RentalsScreen() {
         ))}
       </View>
 
-      {/* CALENDAR */}
       <View style={styles.calendarCard}>
         <Text style={styles.sectionTitle}>Select Date</Text>
 
@@ -100,7 +98,6 @@ export default function RentalsScreen() {
         <Text style={styles.selectedDateText}>Selected Date: {selectedDate}</Text>
       </View>
 
-      {/* LOCATION INFO CARD */}
       <View style={styles.infoCard}>
         <Text style={styles.sectionTitle}>{selectedLocation}</Text>
         <Text style={styles.detailText}>Address: {info.address}</Text>
@@ -125,7 +122,7 @@ export default function RentalsScreen() {
               })
             }
           >
-            <Text style={styles.buttonText}>Choose Time</Text>
+            <Text style={styles.buttonText}>Continue Booking</Text>
           </Pressable>
         </View>
       </View>
@@ -137,7 +134,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: 100,
-    paddingBottom: 140, // extra bottom space so button scrolls above nav bar
+    paddingBottom: 140,
     backgroundColor: "#1337f6",
     flexGrow: 1,
   },

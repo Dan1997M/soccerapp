@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -7,143 +6,180 @@ const bookingData = {
   Hattrick: [
     {
       field: "Field 1",
-      slots: ["6:00 PM - 7:00 PM", "7:00 PM - 8:00 PM", "8:00 PM - 9:00 PM"],
+      type: "5v5",
       price: "$120/hr",
+      slots: ["6:00 PM", "7:00 PM", "8:00 PM"],
     },
     {
       field: "Field 2",
-      slots: ["6:00 PM - 7:00 PM", "8:00 PM - 9:00 PM"],
+      type: "7v7",
       price: "$140/hr",
+      slots: ["6:00 PM", "8:00 PM", "9:00 PM"],
     },
     {
       field: "Field 3",
-      slots: ["7:00 PM - 8:00 PM", "9:00 PM - 10:00 PM"],
+      type: "7v7",
       price: "$140/hr",
+      slots: ["7:00 PM", "8:00 PM", "10:00 PM"],
     },
     {
       field: "Field 4",
-      slots: ["5:00 PM - 6:00 PM", "6:00 PM - 7:00 PM"],
+      type: "5v5",
       price: "$120/hr",
+      slots: ["5:00 PM", "6:00 PM", "7:00 PM"],
     },
   ],
 
   Patio: [
     {
       field: "Field 1",
-      slots: ["6:00 PM - 7:00 PM", "7:00 PM - 8:00 PM"],
+      type: "7v7 Turf",
       price: "$120/hr",
+      slots: ["6:00 PM", "7:00 PM", "8:00 PM"],
     },
     {
       field: "Field 2",
-      slots: ["5:00 PM - 6:00 PM", "8:00 PM - 9:00 PM"],
+      type: "Futsal",
       price: "$120/hr",
+      slots: ["5:00 PM", "6:00 PM", "8:00 PM"],
     },
   ],
 
   Oakridge: [
     {
       field: "Field 1",
-      slots: ["6:30 PM - 7:30 PM", "7:30 PM - 8:30 PM"],
+      type: "7v7 Indoor Turf",
       price: "$120/hr",
+      slots: ["6:30 PM", "7:30 PM", "8:30 PM"],
     },
     {
       field: "Field 2",
-      slots: ["8:00 PM - 9:00 PM", "9:00 PM - 10:00 PM"],
+      type: "9v9 Outdoor Field",
       price: "$110/hr",
+      slots: ["8:00 PM", "9:00 PM", "10:00 PM"],
     },
   ],
 };
 
 export default function RentalBookingScreen() {
-  const { location } = useLocalSearchParams<{ location: string }>();
+  const { location, date } = useLocalSearchParams<{
+    location?: string;
+    date?: string;
+  }>();
 
-  const rentals =
-    bookingData[(location as keyof typeof bookingData) || "Hattrick"];
+  const selectedLocation = (location as keyof typeof bookingData) || "Hattrick";
+  const fields = bookingData[selectedLocation];
 
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
-  const chosenFieldData = useMemo(
-    () => rentals.find((item) => item.field === selectedField) ?? null,
-    [rentals, selectedField]
-  );
+  const chosenField = useMemo(() => {
+    return fields.find((item) => item.field === selectedField) ?? null;
+  }, [fields, selectedField]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Pressable style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="chevron-back" size={26} color="#1337f6" />
-      </Pressable>
-
-      <Text style={styles.title}>Choose Time</Text>
-      <Text style={styles.subtitle}>{location} Rentals</Text>
-
-      <Text style={styles.sectionTitle}>Select Field</Text>
-      <View style={styles.optionGroup}>
-        {rentals.map((item) => (
-          <Pressable
-            key={item.field}
-            style={
-              selectedField === item.field ? styles.optionActive : styles.option
-            }
-            onPress={() => {
-              setSelectedField(item.field);
-              setSelectedTime(null);
-            }}
-          >
-            <Text
-              style={
-                selectedField === item.field
-                  ? styles.optionTextActive
-                  : styles.optionText
-              }
-            >
-              {item.field} • {item.price}
-            </Text>
-          </Pressable>
-        ))}
+      <View style={styles.headerRow}>
+        <Pressable onPress={() => router.back()}>
+          <Text style={styles.backArrow}>←</Text>
+        </Pressable>
       </View>
 
-      {chosenFieldData && (
+      <Text style={styles.title}>Choose Field</Text>
+      <Text style={styles.subtitle}>
+        {selectedLocation} • {date}
+      </Text>
+
+      <Text style={styles.sectionTitle}>Available Fields</Text>
+
+      <View style={styles.optionGroup}>
+        {fields.map((item) => {
+          const isSelected = selectedField === item.field;
+
+          return (
+            <Pressable
+              key={item.field}
+              style={isSelected ? styles.optionActive : styles.option}
+              onPress={() => {
+                setSelectedField(item.field);
+                setSelectedTime(null);
+              }}
+            >
+              <Text
+                style={isSelected ? styles.optionTextActive : styles.optionText}
+              >
+                {item.field}
+              </Text>
+
+              <Text
+                style={
+                  isSelected ? styles.optionSubTextActive : styles.optionSubText
+                }
+              >
+                {item.type} • {item.price}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {chosenField && (
         <>
           <Text style={styles.sectionTitle}>Available Times</Text>
-          <View style={styles.optionGroup}>
-            {chosenFieldData.slots.map((slot) => (
-              <Pressable
-                key={slot}
-                style={
-                  selectedTime === slot ? styles.optionActive : styles.option
-                }
-                onPress={() => setSelectedTime(slot)}
-              >
-                <Text
-                  style={
-                    selectedTime === slot
-                      ? styles.optionTextActive
-                      : styles.optionText
-                  }
+
+          <View style={styles.timeGrid}>
+            {chosenField.slots.map((slot) => {
+              const isSelected = selectedTime === slot;
+
+              return (
+                <Pressable
+                  key={slot}
+                  style={isSelected ? styles.timeButtonActive : styles.timeButton}
+                  onPress={() => setSelectedTime(slot)}
                 >
-                  {slot}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    style={isSelected ? styles.timeTextActive : styles.timeText}
+                  >
+                    {slot}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </>
       )}
 
-      {selectedField && selectedTime && chosenFieldData && (
+      {chosenField && selectedTime && (
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Booking Summary</Text>
-          <Text style={styles.summaryText}>Location: {location}</Text>
-          <Text style={styles.summaryText}>Field: {selectedField}</Text>
+          <Text style={styles.summaryTitle}>Review Booking</Text>
+
+          <Text style={styles.summaryText}>Location: {selectedLocation}</Text>
+          <Text style={styles.summaryText}>Date: {date}</Text>
+          <Text style={styles.summaryText}>Field: {chosenField.field}</Text>
+          <Text style={styles.summaryText}>Type: {chosenField.type}</Text>
           <Text style={styles.summaryText}>Time: {selectedTime}</Text>
-          <Text style={styles.summaryText}>Price: {chosenFieldData.price}</Text>
+          <Text style={styles.summaryText}>Price: {chosenField.price}</Text>
 
           <View style={styles.shadowWrapper}>
             <Pressable
               style={styles.button}
-              onPress={() => router.push("/payment")}
+              onPress={() =>
+                router.push({
+                  pathname: "/checkout",
+                  params: {
+                    type: "rental",
+                    location: selectedLocation,
+                    date: date || "",
+                    field: chosenField.field,
+                    title: chosenField.type,
+                    time: selectedTime,
+                    duration: "1 hour",
+                    price: chosenField.price,
+                  },
+                })
+              }
             >
-              <Text style={styles.buttonText}>Proceed to Payment</Text>
+              <Text style={styles.buttonText}>Review & Confirm</Text>
             </Pressable>
           </View>
         </View>
@@ -156,22 +192,22 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: 100,
-    paddingBottom: 30,
+    paddingBottom: 40,
     backgroundColor: "#1337f6",
     flexGrow: 1,
   },
 
-  backButton: {
+  headerRow: {
     position: "absolute",
     top: 60,
     left: 20,
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: "#F2DD77",
-    alignItems: "center",
-    justifyContent: "center",
     zIndex: 10,
+  },
+
+  backArrow: {
+    fontSize: 28,
+    color: "#ffffff",
+    fontFamily: "AfacadBold",
   },
 
   title: {
@@ -184,10 +220,10 @@ const styles = StyleSheet.create({
 
   subtitle: {
     color: "rgba(255,255,255,0.85)",
-    fontSize: 14,
-    fontFamily: "Afacad",
     textAlign: "center",
-    marginBottom: 16,
+    marginBottom: 18,
+    fontFamily: "Afacad",
+    fontSize: 14,
   },
 
   sectionTitle: {
@@ -195,12 +231,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: "AfacadBold",
     marginBottom: 10,
-    marginTop: 10,
+    marginTop: 8,
   },
 
   optionGroup: {
     gap: 10,
-    marginBottom: 16,
+    marginBottom: 18,
   },
 
   option: {
@@ -217,18 +253,65 @@ const styles = StyleSheet.create({
 
   optionText: {
     color: "#ffffff",
-    fontSize: 14,
-    fontFamily: "Afacad",
+    fontSize: 16,
+    fontFamily: "AfacadBold",
+    marginBottom: 2,
   },
 
   optionTextActive: {
+    color: "#1337f6",
+    fontSize: 16,
+    fontFamily: "AfacadBold",
+    marginBottom: 2,
+  },
+
+  optionSubText: {
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 13,
+    fontFamily: "Afacad",
+  },
+
+  optionSubTextActive: {
+    color: "#1337f6",
+    fontSize: 13,
+    fontFamily: "Afacad",
+  },
+
+  timeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 18,
+  },
+
+  timeButton: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+  },
+
+  timeButtonActive: {
+    backgroundColor: "#F2DD77",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+  },
+
+  timeText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontFamily: "AfacadBold",
+  },
+
+  timeTextActive: {
     color: "#1337f6",
     fontSize: 14,
     fontFamily: "AfacadBold",
   },
 
   summaryCard: {
-    backgroundColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.14)",
     borderRadius: 24,
     padding: 18,
     marginTop: 8,
@@ -238,7 +321,7 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 20,
     fontFamily: "AfacadBold",
-    marginBottom: 10,
+    marginBottom: 12,
   },
 
   summaryText: {

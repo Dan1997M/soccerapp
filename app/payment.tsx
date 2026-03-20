@@ -1,18 +1,29 @@
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function PaymentScreen() {
+  const { location, date, time } = useLocalSearchParams();
+
   return (
     <View style={styles.container}>
-      <Pressable style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="chevron-back" size={26} color="#1337f6" />
-      </Pressable>
 
-      <Text style={styles.title}>Payment Screen</Text>
-      <Text style={styles.subtitle}>
-        This is where your payment flow will go later.
+      {/* 🔙 BACK BUTTON */}
+      <View style={styles.headerRow}>
+        <Pressable onPress={() => router.back()}>
+          <Text style={styles.backArrow}>←</Text>
+        </Pressable>
+      </View>
+
+      <Text style={styles.title}>Confirm Booking</Text>
+
+      <Text style={styles.info}>Location: {location}</Text>
+      <Text style={styles.info}>Date: {date}</Text>
+      <Text style={styles.info}>Time: {time}</Text>
+
+      <Text style={styles.note}>
+        (Payment integration coming next 🔥)
       </Text>
+
     </View>
   );
 }
@@ -23,33 +34,36 @@ const styles = StyleSheet.create({
     backgroundColor: "#1337f6",
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
   },
 
-  backButton: {
+  headerRow: {
     position: "absolute",
     top: 60,
     left: 20,
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: "#F2DD77",
-    alignItems: "center",
-    justifyContent: "center",
     zIndex: 10,
   },
 
-  title: {
-    color: "#ffffff",
+  backArrow: {
     fontSize: 28,
+    color: "#ffffff",
     fontFamily: "AfacadBold",
+  },
+
+  title: {
+    color: "#fff",
+    fontSize: 26,
+    fontFamily: "AfacadBold",
+    marginBottom: 20,
+  },
+
+  info: {
+    color: "#fff",
+    fontSize: 16,
     marginBottom: 8,
   },
 
-  subtitle: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 14,
-    fontFamily: "Afacad",
-    textAlign: "center",
+  note: {
+    marginTop: 20,
+    color: "rgba(255,255,255,0.7)",
   },
 });

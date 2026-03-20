@@ -3,43 +3,40 @@ import React from "react";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
-      initialRouteName="pickups/index"
+      initialRouteName="pickups"
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
         headerShown: false,
         tabBarButton: HapticTab,
-
-      tabBarStyle: {
-        backgroundColor: "#f5e38f",
-        borderTopWidth: 0,
-        height: 70,
-
-        borderRadius: 5,
-        marginHorizontal: 0,
-        marginBottom: 0,
-        position: "absolute",
-      },
-      
-      tabBarActivateTintColor: "#0B2AAE",
-      tabBarInactiveTintColor: "#6b6b6b",
-    }}
+        tabBarActiveTintColor: "#0B2AAE",
+        tabBarInactiveTintColor: "#6b6b6b",
+        tabBarStyle: {
+          backgroundColor: "#f5e38f",
+          borderTopWidth: 0,
+          height: 70,
+          borderRadius: 5,
+          position: "absolute",
+        },
+      }}
     >
-      
       <Tabs.Screen
-        name="pickups/index"
+        name="pickups"
         options={{
           title: "Pick Ups",
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="soccerball" color={color} />
           ),
+        }}
+      />
+
+      {/* 🔴 THIS IS THE FIX — hide details screen from tab bar */}
+      <Tabs.Screen
+        name="pickups/[id]"
+        options={{
+          href: null,
         }}
       />
 

@@ -1,16 +1,46 @@
 import { router, useLocalSearchParams } from "expo-router";
+import { useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { addFriend, isFriend } from "../constants/playerStore";
 
 export default function PlayerProfileScreen() {
-  const { name, username, image, date, added } = useLocalSearchParams<{
-    name: string;
-    username: string;
-    image: string;
-    date: string;
-    added: string;
+  const { id, name, username, image, date, added } = useLocalSearchParams<{
+    id?: string;
+    name?: string;
+    username?: string;
+    image?: string;
+    date?: string;
+    added?: string;
   }>();
 
-  const isAdded = added === "true";
+  const [friendAdded, setFriendAdded] = useState(
+    added === "true" || (username ? isFriend(username) : false)
+  );
+
+  const handleAddFriend = () => {
+    if (!friendAdded && id && name && username && image && date) {
+      addFriend({
+        id,
+        name,
+        username,
+        image,
+        date,
+        added: true,
+      });
+      setFriendAdded(true);
+    }
+  };
+
+  const handleMessage = () => {
+    router.push({
+      pathname: "/chat",
+      params: {
+        name,
+        username,
+        image,
+      },
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -28,17 +58,17 @@ export default function PlayerProfileScreen() {
         <Text style={styles.detailText}>{date}</Text>
 
         <View style={styles.buttonRow}>
-          {isAdded ? (
+          {friendAdded ? (
             <Pressable style={styles.secondaryButton}>
               <Text style={styles.secondaryButtonText}>Friend</Text>
             </Pressable>
           ) : (
-            <Pressable style={styles.primaryButton}>
+            <Pressable style={styles.primaryButton} onPress={handleAddFriend}>
               <Text style={styles.primaryButtonText}>Add Friend</Text>
             </Pressable>
           )}
 
-          <Pressable style={styles.secondaryButton}>
+          <Pressable style={styles.secondaryButton} onPress={handleMessage}>
             <Text style={styles.secondaryButtonText}>Message</Text>
           </Pressable>
         </View>
