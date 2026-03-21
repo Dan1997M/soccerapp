@@ -42,6 +42,8 @@ export default function RootLayout() {
         <Stack.Screen name="profile" />
         <Stack.Screen name="rental-booking" />
         <Stack.Screen name="checkout" />
+        <Stack.Screen name="team-registration" />
+        <Stack.Screen name="compete-events" />
         <Stack.Screen name="payment" />
         <Stack.Screen name="player-profile" />
         <Stack.Screen name="chat" />

@@ -1,72 +1,66 @@
-import { router, useLocalSearchParams } from "expo-router";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-export default function PlayerProfileScreen() {
-  const { name, username, image, date, added } = useLocalSearchParams<{
-    name: string;
-    username: string;
-    image: string;
-    date: string;
-    added: string;
-  }>();
-
-  const isAdded = added === "true";
-
+export default function ProfileScreen() {
   return (
-    <View style={styles.container}>
-      <Pressable style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backArrow}>←</Text>
-      </Pressable>
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <Image
+        source={{ uri: "https://randomuser.me/api/portraits/men/10.jpg" }}
+        style={styles.avatar}
+      />
 
-      <Image source={{ uri: image }} style={styles.avatar} />
-
-      <Text style={styles.name}>{name}</Text>
-      <Text style={styles.username}>{username}</Text>
+      <Text style={styles.name}>Daniel Martinez</Text>
+      <Text style={styles.username}>@danielmartinez</Text>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Last Played</Text>
-        <Text style={styles.detailText}>{date}</Text>
-
-        <View style={styles.buttonRow}>
-          {isAdded ? (
-            <Pressable style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>Friend</Text>
-            </Pressable>
-          ) : (
-            <Pressable style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Add Friend</Text>
-            </Pressable>
-          )}
-
-          <Pressable style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Message</Text>
-          </Pressable>
-        </View>
+        <Text style={styles.sectionTitle}>My Profile</Text>
+        <Text style={styles.detailText}>Preferred Position: Midfielder</Text>
+        <Text style={styles.detailText}>Skill Level: Intermediate</Text>
+        <Text style={styles.detailText}>Favorite Field: Hattrick</Text>
       </View>
-    </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>My Activity</Text>
+
+        <Pressable style={styles.rowButton}>
+          <Text style={styles.rowButtonText}>My Pickup Games</Text>
+        </Pressable>
+
+        <Pressable style={styles.rowButton}>
+          <Text style={styles.rowButtonText}>My Rentals</Text>
+        </Pressable>
+
+        <Pressable style={styles.rowButton}>
+          <Text style={styles.rowButtonText}>My Friends</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Settings</Text>
+
+        <Pressable style={styles.rowButton}>
+          <Text style={styles.rowButtonText}>Edit Profile</Text>
+        </Pressable>
+
+        <Pressable style={styles.rowButton}>
+          <Text style={styles.rowButtonText}>Notifications</Text>
+        </Pressable>
+
+        <Pressable style={styles.rowButton}>
+          <Text style={styles.rowButtonText}>Payment Methods</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "#1337f6",
-    paddingTop: 100,
     paddingHorizontal: 20,
+    paddingTop: 100,
+    paddingBottom: 140,
+    backgroundColor: "#1337f6",
+    flexGrow: 1,
     alignItems: "center",
-  },
-
-  backButton: {
-    position: "absolute",
-    top: 60,
-    left: 20,
-    zIndex: 10,
-  },
-
-  backArrow: {
-    fontSize: 28,
-    color: "#ffffff",
-    fontFamily: "AfacadBold",
   },
 
   avatar: {
@@ -87,7 +81,7 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.75)",
     fontSize: 15,
     fontFamily: "Afacad",
-    marginBottom: 20,
+    marginBottom: 22,
   },
 
   card: {
@@ -95,53 +89,34 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.14)",
     borderRadius: 24,
     padding: 18,
+    marginBottom: 16,
   },
 
   sectionTitle: {
     color: "#ffffff",
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: "AfacadBold",
-    marginBottom: 6,
+    marginBottom: 12,
   },
 
   detailText: {
-    color: "rgba(255,255,255,0.9)",
+    color: "rgba(255,255,255,0.92)",
     fontSize: 14,
     fontFamily: "Afacad",
-    lineHeight: 20,
+    marginBottom: 8,
   },
 
-  buttonRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 20,
-  },
-
-  primaryButton: {
-    flex: 1,
-    backgroundColor: "#F2DD77",
-    paddingVertical: 12,
+  rowButton: {
+    backgroundColor: "rgba(255,255,255,0.12)",
     borderRadius: 18,
-    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginBottom: 10,
   },
 
-  primaryButtonText: {
-    color: "#1337f6",
-    fontSize: 14,
-    fontFamily: "AfacadBold",
-  },
-
-  secondaryButton: {
-    flex: 1,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    paddingVertical: 12,
-    borderRadius: 18,
-    alignItems: "center",
-  },
-
-  secondaryButtonText: {
+  rowButtonText: {
     color: "#ffffff",
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: "AfacadBold",
   },
 });

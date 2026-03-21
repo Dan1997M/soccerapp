@@ -50,6 +50,7 @@ export default function PickupDetailsScreen() {
         inviteGameLocation: location || "",
         inviteGameDate: date || "",
         inviteGameTime: time || "",
+        inviteSpotsLeft: remainingSpots.toString(),
       },
     });
   };

@@ -1,22 +1,44 @@
 import { router } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { getUserSession } from "../constants/appStorage";
 
 export default function StartupScreen() {
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const session = await getUserSession();
+
+      if (session?.isLoggedIn) {
+        router.replace("/pickups");
+        return;
+      }
+
+      setCheckingSession(false);
+    };
+
+    checkSession();
+  }, []);
+
+  if (checkingSession) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#F2DD77" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Logo */}
       <View style={styles.logoRow}>
         <Text style={styles.letters}>th</Text>
         <Text style={styles.bigThree}>3</Text>
         <Text style={styles.letters}>hattrick</Text>
       </View>
 
-      {/* Button with bottom shadow */}
       <View style={styles.shadowWrapper}>
-        <Pressable
-          style={styles.button}
-          onPress={() => router.push("/login")}
-        >
+        <Pressable style={styles.button} onPress={() => router.push("/login")}>
           <Text style={styles.buttonText}>Log In</Text>
         </Pressable>
       </View>
@@ -43,7 +65,7 @@ const styles = StyleSheet.create({
     fontFamily: "AfacadBold",
     fontSize: 72,
     color: "#ffffff",
-    marginBottom: 14, // raises letters slightly
+    marginBottom: 14,
   },
 
   bigThree: {
@@ -51,17 +73,17 @@ const styles = StyleSheet.create({
     fontSize: 110,
     color: "#ffffff",
     marginHorizontal: 2,
-    transform: [{ translateY: 10 }], // pushes 3 slightly down
+    transform: [{ translateY: 10 }],
   },
 
   shadowWrapper: {
-    width: "70%", 
+    width: "70%",
     alignSelf: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 }, // shadow only downward
+    shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
-    elevation: 12, // Android shadow
+    elevation: 12,
   },
 
   button: {

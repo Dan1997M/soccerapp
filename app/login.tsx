@@ -1,16 +1,57 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, {
   FadeIn,
   FadeOut,
   Layout,
 } from "react-native-reanimated";
+import { saveUserSession } from "../constants/appStorage";
 
 export default function LoginScreen() {
   const [mode, setMode] = useState<"login" | "signup">("login");
 
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [loginField, setLoginField] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   const isSignup = mode === "signup";
+
+  const handleAuth = async () => {
+    if (isSignup) {
+      if (
+        !firstName.trim() ||
+        !lastName.trim() ||
+        !phoneNumber.trim() ||
+        !loginField.trim() ||
+        !password.trim() ||
+        !confirmPassword.trim()
+      ) {
+        Alert.alert("Missing Information", "Please complete all required fields.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        Alert.alert("Password Mismatch", "Passwords do not match.");
+        return;
+      }
+    } else {
+      if (!loginField.trim() || !password.trim()) {
+        Alert.alert("Missing Information", "Please enter your username and password.");
+        return;
+      }
+    }
+
+    await saveUserSession({
+      isLoggedIn: true,
+      mode,
+    });
+
+    router.replace("/pickups");
+  };
 
   return (
     <View style={styles.container}>
@@ -30,6 +71,8 @@ export default function LoginScreen() {
                 placeholder="First Name"
                 placeholderTextColor="#9AA3B2"
                 style={styles.input}
+                value={firstName}
+                onChangeText={setFirstName}
               />
             </Animated.View>
 
@@ -38,6 +81,8 @@ export default function LoginScreen() {
                 placeholder="Last Name"
                 placeholderTextColor="#9AA3B2"
                 style={styles.input}
+                value={lastName}
+                onChangeText={setLastName}
               />
             </Animated.View>
 
@@ -47,6 +92,8 @@ export default function LoginScreen() {
                 placeholderTextColor="#9AA3B2"
                 style={styles.input}
                 keyboardType="phone-pad"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
               />
             </Animated.View>
           </>
@@ -57,6 +104,8 @@ export default function LoginScreen() {
           placeholderTextColor="#9AA3B2"
           style={styles.input}
           autoCapitalize="none"
+          value={loginField}
+          onChangeText={setLoginField}
         />
 
         <TextInput
@@ -64,6 +113,8 @@ export default function LoginScreen() {
           placeholderTextColor="#9AA3B2"
           style={styles.input}
           secureTextEntry
+          value={password}
+          onChangeText={setPassword}
         />
 
         {isSignup && (
@@ -73,15 +124,14 @@ export default function LoginScreen() {
               placeholderTextColor="#9AA3B2"
               style={styles.input}
               secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
             />
           </Animated.View>
         )}
 
         <View style={styles.shadowWrapper}>
-          <Pressable
-            style={styles.button}
-            onPress={() => router.replace("/pickups")}
-          >
+          <Pressable style={styles.button} onPress={handleAuth}>
             <Text style={styles.buttonText}>
               {isSignup ? "Sign Up" : "Login"}
             </Text>

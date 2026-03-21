@@ -29,6 +29,13 @@ export default function CheckoutScreen() {
     );
   };
 
+  const headerLabel =
+    type === "pickup"
+      ? "Pickup Game"
+      : type === "rental"
+      ? "Field Rental"
+      : "Competition Registration";
+
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -40,9 +47,7 @@ export default function CheckoutScreen() {
         </View>
 
         <View style={styles.summaryCard}>
-          <Text style={styles.cardTitle}>
-            {type === "pickup" ? "Pickup Game" : "Field Rental"}
-          </Text>
+          <Text style={styles.cardTitle}>{headerLabel}</Text>
 
           {!!title && (
             <View style={styles.infoRow}>
@@ -60,7 +65,9 @@ export default function CheckoutScreen() {
 
           {!!field && (
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Field</Text>
+              <Text style={styles.infoLabel}>
+                {type === "compete" ? "Team" : "Field"}
+              </Text>
               <Text style={styles.infoValue}>{field}</Text>
             </View>
           )}
@@ -74,14 +81,18 @@ export default function CheckoutScreen() {
 
           {!!time && (
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Time</Text>
+              <Text style={styles.infoLabel}>
+                {type === "compete" ? "Entry Type" : "Time"}
+              </Text>
               <Text style={styles.infoValue}>{time}</Text>
             </View>
           )}
 
           {!!duration && (
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Duration</Text>
+              <Text style={styles.infoLabel}>
+                {type === "compete" ? "Format" : "Duration"}
+              </Text>
               <Text style={styles.infoValue}>{duration}</Text>
             </View>
           )}

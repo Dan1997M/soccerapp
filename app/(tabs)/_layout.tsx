@@ -32,7 +32,6 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 🔴 THIS IS THE FIX — hide details screen from tab bar */}
       <Tabs.Screen
         name="pickups/[id]"
         options={{
@@ -51,11 +50,11 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="friends"
+        name="compete"
         options={{
-          title: "Friends",
+          title: "Compete",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person.2.fill" color={color} />
+            <IconSymbol size={28} name="trophy.fill" color={color} />
           ),
         }}
       />
@@ -77,6 +76,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="person.fill" color={color} />
           ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="friends"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

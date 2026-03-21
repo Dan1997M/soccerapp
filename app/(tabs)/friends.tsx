@@ -23,18 +23,22 @@ export default function FriendsScreen() {
     inviteGameLocation,
     inviteGameDate,
     inviteGameTime,
+    inviteSpotsLeft,
   } = useLocalSearchParams<{
     inviteGameTitle?: string;
     inviteGameLocation?: string;
     inviteGameDate?: string;
     inviteGameTime?: string;
+    inviteSpotsLeft?: string;
   }>();
 
   const isInviteMode = !!inviteGameTitle;
+  const inviteLimit = Number(inviteSpotsLeft || 0);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [recentPlayers, setRecentPlayers] = useState<Player[]>([]);
   const [myFriends, setMyFriends] = useState<Player[]>([]);
+  const [invitedUsernames, setInvitedUsernames] = useState<string[]>([]);
 
   const refreshLists = useCallback(() => {
     setMyFriends([...getFriends()]);
@@ -57,6 +61,21 @@ export default function FriendsScreen() {
       );
     });
   }, [recentPlayers, searchQuery]);
+
+  const invitedCount = invitedUsernames.length;
+  const inviteLimitReached = isInviteMode && invitedCount >= inviteLimit;
+
+  const clearInviteMode = () => {
+    setInvitedUsernames([]);
+
+    router.setParams({
+      inviteGameTitle: undefined,
+      inviteGameLocation: undefined,
+      inviteGameDate: undefined,
+      inviteGameTime: undefined,
+      inviteSpotsLeft: undefined,
+    });
+  };
 
   const handleAddPlayer = (player: Player) => {
     addFriend(player);
@@ -92,6 +111,24 @@ export default function FriendsScreen() {
   };
 
   const handleInviteFriend = (friend: Player) => {
+    const alreadyInvited = invitedUsernames.includes(friend.username);
+
+    if (alreadyInvited) {
+      return;
+    }
+
+    if (invitedCount >= inviteLimit) {
+      Alert.alert(
+        "Invite Limit Reached",
+        `You can only invite up to ${inviteLimit} ${
+          inviteLimit === 1 ? "friend" : "friends"
+        } for this game.`
+      );
+      return;
+    }
+
+    setInvitedUsernames((prev) => [...prev, friend.username]);
+
     Alert.alert(
       "Invite Sent",
       `${friend.name} was invited to ${inviteGameTitle} at ${inviteGameLocation} on ${inviteGameDate} at ${inviteGameTime}.`
@@ -101,14 +138,20 @@ export default function FriendsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.headerRow}>
-  {isInviteMode && (
-    <Pressable style={styles.backButton} onPress={() => router.back()}>
-      <Text style={styles.backArrow}>←</Text>
-    </Pressable>
-  )}
+        {isInviteMode && (
+          <Pressable
+            style={styles.backButton}
+            onPress={() => {
+              clearInviteMode();
+              router.back();
+            }}
+          >
+            <Text style={styles.backArrow}>←</Text>
+          </Pressable>
+        )}
 
-  <Text style={styles.title}>Friends</Text>
-</View>
+        <Text style={styles.title}>Friends</Text>
+      </View>
 
       {isInviteMode && (
         <View style={styles.inviteBanner}>
@@ -116,6 +159,9 @@ export default function FriendsScreen() {
           <Text style={styles.inviteBannerText}>
             {inviteGameTitle} • {inviteGameLocation} • {inviteGameDate} •{" "}
             {inviteGameTime}
+          </Text>
+          <Text style={styles.inviteCounterText}>
+            Invited {invitedCount} of {inviteLimit}
           </Text>
         </View>
       )}
@@ -134,30 +180,55 @@ export default function FriendsScreen() {
 
       {myFriends.length > 0 ? (
         <View style={styles.friendsListWrapper}>
-          {myFriends.map((friend) => (
-            <View key={friend.id} style={styles.friendRow}>
-              <Pressable
-                style={styles.leftSide}
-                onPress={() => openFriendProfile(friend)}
-              >
-                <Image source={{ uri: friend.image }} style={styles.avatar} />
+          {myFriends.map((friend) => {
+            const isInvited = invitedUsernames.includes(friend.username);
 
-                <View style={styles.textBlock}>
-                  <Text style={styles.name}>{friend.name}</Text>
-                  <Text style={styles.username}>{friend.username}</Text>
-                </View>
-              </Pressable>
-
-              {isInviteMode ? (
+            return (
+              <View key={friend.id} style={styles.friendRow}>
                 <Pressable
-                  style={styles.inviteButton}
-                  onPress={() => handleInviteFriend(friend)}
+                  style={styles.leftSide}
+                  onPress={() => openFriendProfile(friend)}
                 >
-                  <Text style={styles.inviteButtonText}>Invite</Text>
+                  <Image source={{ uri: friend.image }} style={styles.avatar} />
+
+                  <View style={styles.textBlock}>
+                    <Text style={styles.name}>{friend.name}</Text>
+                    <Text style={styles.username}>{friend.username}</Text>
+                  </View>
                 </Pressable>
-              ) : null}
-            </View>
-          ))}
+
+                {isInviteMode ? (
+                  <Pressable
+                    style={[
+                      styles.inviteButton,
+                      isInvited && styles.invitedButton,
+                      inviteLimitReached &&
+                        !isInvited &&
+                        styles.inviteDisabledButton,
+                    ]}
+                    onPress={() => handleInviteFriend(friend)}
+                    disabled={isInvited || inviteLimitReached}
+                  >
+                    <Text
+                      style={[
+                        styles.inviteButtonText,
+                        isInvited && styles.invitedButtonText,
+                        inviteLimitReached &&
+                          !isInvited &&
+                          styles.inviteDisabledButtonText,
+                      ]}
+                    >
+                      {isInvited
+                        ? "Invited"
+                        : inviteLimitReached
+                        ? "Full"
+                        : "Invite"}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            );
+          })}
         </View>
       ) : (
         <Text style={styles.emptyText}>No friends added yet.</Text>
@@ -208,6 +279,29 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
 
+  headerRow: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+    minHeight: 40,
+  },
+
+  backButton: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    zIndex: 10,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+
+  backArrow: {
+    fontSize: 28,
+    color: "#ffffff",
+    fontFamily: "AfacadBold",
+  },
+
   title: {
     color: "#ffffff",
     fontSize: 28,
@@ -234,6 +328,13 @@ const styles = StyleSheet.create({
     color: "#1337f6",
     fontSize: 14,
     fontFamily: "Afacad",
+    marginBottom: 6,
+  },
+
+  inviteCounterText: {
+    color: "#1337f6",
+    fontSize: 14,
+    fontFamily: "AfacadBold",
   },
 
   searchWrapper: {
@@ -356,37 +457,26 @@ const styles = StyleSheet.create({
     fontFamily: "AfacadBold",
   },
 
+  invitedButton: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+
+  invitedButtonText: {
+    color: "#ffffff",
+  },
+
+  inviteDisabledButton: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+
+  inviteDisabledButtonText: {
+    color: "rgba(255,255,255,0.7)",
+  },
+
   emptyText: {
     color: "rgba(255,255,255,0.75)",
     fontSize: 13,
     fontFamily: "Afacad",
     marginBottom: 22,
   },
-  headerRow: {
-  position: "relative",
-  alignItems: "center",
-  justifyContent: "center",
-  marginBottom: 18,
-  minHeight: 40,
-},
-
-backButton: {
-  position: "absolute",
-  left: 0,
-  top: 0,
-  zIndex: 10,
-  paddingHorizontal: 4,
-  paddingVertical: 2,
-},
-
-backArrow: {
-  fontSize: 28,
-  color: "#ffffff",
-  fontFamily: "AfacadBold",
-},
-backArrow: {
-  fontSize: 28,
-  color: "#ffffff",
-  fontFamily: "AfacadBold",
-},
 });
