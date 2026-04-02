@@ -1,12 +1,9 @@
+import { ensureProfile } from "@/lib/ensureProfile";
+import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import Animated, {
-  FadeIn,
-  FadeOut,
-  Layout,
-} from "react-native-reanimated";
-import { saveUserSession } from "../constants/appStorage";
+import Animated, { FadeIn, FadeOut, Layout } from "react-native-reanimated";
 
 export default function LoginScreen() {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -17,40 +14,86 @@ export default function LoginScreen() {
   const [loginField, setLoginField] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const isSignup = mode === "signup";
 
   const handleAuth = async () => {
-    if (isSignup) {
-      if (
-        !firstName.trim() ||
-        !lastName.trim() ||
-        !phoneNumber.trim() ||
-        !loginField.trim() ||
-        !password.trim() ||
-        !confirmPassword.trim()
-      ) {
-        Alert.alert("Missing Information", "Please complete all required fields.");
-        return;
-      }
+    try {
+      if (isSignup) {
+        if (
+          !firstName.trim() ||
+          !lastName.trim() ||
+          !phoneNumber.trim() ||
+          !loginField.trim() ||
+          !password.trim() ||
+          !confirmPassword.trim()
+        ) {
+          Alert.alert("Missing Information", "Please complete all required fields.");
+          return;
+        }
 
-      if (password !== confirmPassword) {
-        Alert.alert("Password Mismatch", "Passwords do not match.");
-        return;
+        if (password !== confirmPassword) {
+          Alert.alert("Password Mismatch", "Passwords do not match.");
+          return;
+        }
+
+        setLoading(true);
+
+        const { data, error } = await supabase.auth.signUp({
+          email: loginField.trim(),
+          password,
+          options: {
+            data: {
+              first_name: firstName.trim(),
+              last_name: lastName.trim(),
+              phone_number: phoneNumber.trim(),
+              full_name: `${firstName.trim()} ${lastName.trim()}`,
+            },
+          },
+        });
+
+        if (error) throw error;
+
+        if (!data.session) {
+          Alert.alert(
+            "Check your email",
+            "Your account was created. Verify your email, then log in."
+          );
+          setMode("login");
+          setPassword("");
+          setConfirmPassword("");
+          return;
+        }
+
+        await ensureProfile();
+        router.replace("/(tabs)/pickups");
+      } else {
+        if (!loginField.trim() || !password.trim()) {
+          Alert.alert("Missing Information", "Please enter your email and password.");
+          return;
+        }
+
+        setLoading(true);
+
+        const { error } = await supabase.auth.signInWithPassword({
+          email: loginField.trim(),
+          password,
+        });
+
+        if (error) throw error;
+
+        await ensureProfile();
+        router.replace("/(tabs)/pickups");
       }
-    } else {
-      if (!loginField.trim() || !password.trim()) {
-        Alert.alert("Missing Information", "Please enter your username and password.");
-        return;
-      }
+    } catch (error: any) {
+      Alert.alert(
+        isSignup ? "Signup failed" : "Login failed",
+        error?.message ?? "Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    await saveUserSession({
-      isLoggedIn: true,
-      mode,
-    });
-
-    router.replace("/pickups");
   };
 
   return (
@@ -100,10 +143,11 @@ export default function LoginScreen() {
         )}
 
         <TextInput
-          placeholder={isSignup ? "Email" : "User Name"}
+          placeholder="Email"
           placeholderTextColor="#9AA3B2"
           style={styles.input}
           autoCapitalize="none"
+          keyboardType="email-address"
           value={loginField}
           onChangeText={setLoginField}
         />
@@ -131,9 +175,9 @@ export default function LoginScreen() {
         )}
 
         <View style={styles.shadowWrapper}>
-          <Pressable style={styles.button} onPress={handleAuth}>
+          <Pressable style={styles.button} onPress={handleAuth} disabled={loading}>
             <Text style={styles.buttonText}>
-              {isSignup ? "Sign Up" : "Login"}
+              {loading ? "Please wait..." : isSignup ? "Sign Up" : "Login"}
             </Text>
           </Pressable>
         </View>
@@ -141,12 +185,11 @@ export default function LoginScreen() {
         <Pressable
           onPress={() => setMode(isSignup ? "login" : "signup")}
           style={{ marginTop: 12 }}
+          disabled={loading}
         >
           <Text style={styles.linkText}>
             {isSignup ? "Already have an account? " : "Don’t have an account? "}
-            <Text style={styles.linkBold}>
-              {isSignup ? "Login" : "Signup"}
-            </Text>
+            <Text style={styles.linkBold}>{isSignup ? "Login" : "Signup"}</Text>
           </Text>
         </Pressable>
       </Animated.View>

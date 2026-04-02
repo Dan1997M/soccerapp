@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { AuthProvider } from "@/providers/AuthProvider";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,26 +31,28 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="startup" />
-        <Stack.Screen name="login" />
-        <Stack.Screen name="signup" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="create-game" />
-        <Stack.Screen name="game-details" />
-        <Stack.Screen name="profile" />
-        <Stack.Screen name="rental-booking" />
-        <Stack.Screen name="checkout" />
-        <Stack.Screen name="team-registration" />
-        <Stack.Screen name="compete-events" />
-        <Stack.Screen name="payment" />
-        <Stack.Screen name="player-profile" />
-        <Stack.Screen name="chat" />
-        <Stack.Screen name="modal" options={{ presentation: "modal" }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="startup" />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="signup" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="create-game" />
+          <Stack.Screen name="game-details" />
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="rental-booking" />
+          <Stack.Screen name="checkout" />
+          <Stack.Screen name="compete-events" />
+          <Stack.Screen name="payment" />
+          <Stack.Screen name="player-profile" />
+          <Stack.Screen name="chat" />
+          <Stack.Screen name="team-registration" />
+          <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+        </Stack>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }

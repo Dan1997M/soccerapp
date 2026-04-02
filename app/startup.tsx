@@ -1,30 +1,21 @@
+import { useAuth } from "@/providers/AuthProvider";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { getUserSession } from "../constants/appStorage";
+import { useEffect } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function StartupScreen() {
-  const [checkingSession, setCheckingSession] = useState(true);
+  const { session, loading } = useAuth();
 
   useEffect(() => {
-    const checkSession = async () => {
-      const session = await getUserSession();
+    if (!loading && session) {
+      router.replace("/(tabs)/pickups");
+    }
+  }, [loading, session]);
 
-      if (session?.isLoggedIn) {
-        router.replace("/pickups");
-        return;
-      }
-
-      setCheckingSession(false);
-    };
-
-    checkSession();
-  }, []);
-
-  if (checkingSession) {
+  if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#F2DD77" />
+        <Text style={{ color: "#ffffff" }}>Loading...</Text>
       </View>
     );
   }
@@ -54,20 +45,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
   },
-
   logoRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     marginBottom: 60,
   },
-
   letters: {
     fontFamily: "AfacadBold",
     fontSize: 72,
     color: "#ffffff",
     marginBottom: 14,
   },
-
   bigThree: {
     fontFamily: "AfacadBold",
     fontSize: 110,
@@ -75,7 +63,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
     transform: [{ translateY: 10 }],
   },
-
   shadowWrapper: {
     width: "70%",
     alignSelf: "center",
@@ -85,7 +72,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 12,
   },
-
   button: {
     width: "100%",
     height: 54,
@@ -94,7 +80,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   buttonText: {
     color: "#0B2AAE",
     fontSize: 18,

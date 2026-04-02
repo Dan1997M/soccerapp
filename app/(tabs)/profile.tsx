@@ -1,6 +1,19 @@
+import { useProfile } from "@/hooks/useProfile";
+import { useAuth } from "@/providers/AuthProvider";
+import { router } from "expo-router";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+
+
 export default function ProfileScreen() {
+  const { profile, loading } = useProfile();
+  const { signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.replace("/login");
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <Image
@@ -8,8 +21,9 @@ export default function ProfileScreen() {
         style={styles.avatar}
       />
 
-      <Text style={styles.name}>Daniel Martinez</Text>
-      <Text style={styles.username}>@danielmartinez</Text>
+      <Text style={styles.name}>
+        {loading ? "loading..." : profile?.full_name}
+      </Text>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>My Profile</Text>
@@ -47,6 +61,17 @@ export default function ProfileScreen() {
 
         <Pressable style={styles.rowButton}>
           <Text style={styles.rowButtonText}>Payment Methods</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <Pressable
+          style={[styles.rowButton, { backgroundColor: "#ff4d4d" }]}
+          onPress={handleSignOut}
+        >
+          <Text style={[styles.rowButtonText, { textAlign: "center" }]}>
+            Sign Out
+          </Text>
         </Pressable>
       </View>
     </ScrollView>
