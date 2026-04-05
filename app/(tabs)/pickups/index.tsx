@@ -1,6 +1,7 @@
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -9,132 +10,67 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { fetchPickupGames, PickupGame } from "../../../lib/pickupGames";
 
-const days = [
-  { label: "Today", date: "16" },
-  { label: "Mon", date: "17" },
-  { label: "Tue", date: "18" },
-  { label: "Wed", date: "19" },
-  { label: "Thu", date: "20" },
-  { label: "Fri", date: "21" },
-  { label: "Sat", date: "22" },
-  { label: "Sun", date: "23" },
-];
+const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function getWeekDays() {
+  const result = [];
+  const today = new Date();
+
+  for (let i = 0; i < 7; i++) {
+    const current = new Date(today);
+    current.setDate(today.getDate() + i);
+
+    result.push({
+      label: i === 0 ? "Today" : weekdayLabels[current.getDay()],
+      date: current.getDate().toString(),
+      fullDate: current.toISOString().split("T")[0],
+    });
+  }
+
+  return result;
+}
+
+const days = getWeekDays();
 
 const locations = ["Hattrick", "Patio", "Oakridge"];
 
-type Game = {
-  id: number;
-  title: string;
-  date: string;
-  time: string;
-  spotsLeft: number;
-  price: string;
-  image: string;
-  joined?: boolean;
+const locationImageMap: Record<string, string> = {
+  hattrick: "https://picsum.photos/id/1011/1200/700",
+  patio: "https://picsum.photos/id/1035/1200/700",
+  oakridge: "https://picsum.photos/id/1043/1200/700",
 };
 
-const initialGamesByLocation: Record<string, Game[]> = {
-  Hattrick: [
-    {
-      id: 1,
-      title: "Evening 7v7",
-      date: "Today",
-      time: "8:00 PM",
-      spotsLeft: 3,
-      price: "$10",
-      image: "https://picsum.photos/id/1011/1200/700",
-      joined: false,
-    },
-    {
-      id: 8,
-      title: "Evening 7v7",
-      date: "Today",
-      time: "7:00 PM",
-      spotsLeft: 2,
-      price: "$10",
-      image: "https://picsum.photos/id/1015/1200/700",
-      joined: false,
-    },
-    {
-      id: 9,
-      title: "Evening 5v5",
-      date: "Today",
-      time: "9:00 PM",
-      spotsLeft: 1,
-      price: "$10",
-      image: "https://picsum.photos/id/1016/1200/700",
-      joined: false,
-    },
-    {
-      id: 2,
-      title: "Late Night Match",
-      date: "Tue",
-      time: "9:30 PM",
-      spotsLeft: 5,
-      price: "$12",
-      image: "https://picsum.photos/id/1020/1200/700",
-      joined: false,
-    },
-    {
-      id: 7,
-      title: "Morning Pickup",
-      date: "Today",
-      time: "10:00 AM",
-      spotsLeft: 4,
-      price: "$9",
-      image: "https://picsum.photos/id/1031/1200/700",
-      joined: false,
-    },
-  ],
-  Patio: [
-    {
-      id: 3,
-      title: "Patio Open Play",
-      date: "Wed",
-      time: "7:00 PM",
-      spotsLeft: 4,
-      price: "$8",
-      image: "https://picsum.photos/id/1035/1200/700",
-      joined: false,
-    },
-    {
-      id: 4,
-      title: "Patio Small-Sided",
-      date: "Fri",
-      time: "8:15 PM",
-      spotsLeft: 2,
-      price: "$10",
-      image: "https://picsum.photos/id/1040/1200/700",
-      joined: false,
-    },
-  ],
-  Oakridge: [
-    {
-      id: 5,
-      title: "Oakridge Pickup",
-      date: "Thu",
-      time: "6:30 PM",
-      spotsLeft: 6,
-      price: "$9",
-      image: "https://picsum.photos/id/1043/1200/700",
-      joined: false,
-    },
-    {
-      id: 6,
-      title: "Weekend Match",
-      date: "Sat",
-      time: "10:00 AM",
-      spotsLeft: 1,
-      price: "$11",
-      image: "https://picsum.photos/id/1050/1200/700",
-      joined: false,
-    },
-  ],
-};
+function formatLocationForDb(location: string) {
+  return location.toLowerCase();
+}
+
+function formatLocationForUi(location: string) {
+  return location.charAt(0).toUpperCase() + location.slice(1);
+}
+
+function formatTime(time: string) {
+  if (!time) return "";
+
+  const [hourString, minuteString] = time.split(":");
+  let hour = Number(hourString);
+  const minute = minuteString ?? "00";
+
+  const suffix = hour >= 12 ? "PM" : "AM";
+
+  if (hour === 0) {
+    hour = 12;
+  } else if (hour > 12) {
+    hour = hour - 12;
+  }
+
+  return `${hour}:${minute} ${suffix}`;
+}
 
 function convertTimeToMinutes(time: string) {
-  const [hourMinute, period] = time.split(" ");
+  const cleanTime = formatTime(time);
+  const [hourMinute, period] = cleanTime.split(" ");
   let [hours, minutes] = hourMinute.split(":").map(Number);
 
   if (period === "PM" && hours !== 12) {
@@ -149,48 +85,89 @@ function convertTimeToMinutes(time: string) {
 }
 
 export default function PickupsScreen() {
+  const days = useMemo(() => getWeekDays(), []);
   const [selectedDay, setSelectedDay] = useState("Today");
   const [selectedLocation, setSelectedLocation] = useState("Hattrick");
   const [searchQuery, setSearchQuery] = useState("");
-  const [gamesByLocation] = useState(initialGamesByLocation);
+  const [games, setGames] = useState<PickupGame[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadGames();
+  }, []);
+
+  async function loadGames() {
+    try {
+      setLoading(true);
+      const data = await fetchPickupGames();
+      setGames(data);
+    } catch (error) {
+      console.log("Error fetching games:", error);
+      Alert.alert("Error", "Could not load pickup games.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const filteredGames = useMemo(() => {
-    return gamesByLocation[selectedLocation]
+    return games
       .filter((game) => {
-        const matchesDay =
-          selectedDay === "Today"
-            ? game.date === "Today"
-            : game.date === selectedDay;
+        const matchesLocation =
+          game.location === formatLocationForDb(selectedLocation);
 
-        const query = searchQuery.toLowerCase();
+        const query = searchQuery.toLowerCase().trim();
 
         const matchesSearch =
-          game.title.toLowerCase().includes(query) ||
-          game.time.toLowerCase().includes(query) ||
-          selectedLocation.toLowerCase().includes(query);
+          query.length === 0 ||
+          game.format.toLowerCase().includes(query) ||
+          game.field_name.toLowerCase().includes(query) ||
+          game.surface.toLowerCase().includes(query) ||
+          game.location.toLowerCase().includes(query) ||
+          formatTime(game.start_time).toLowerCase().includes(query);
 
-        return matchesDay && matchesSearch;
+        // Day filter is temporarily not connected yet because your seeded SQL dates
+        // are real database dates, while these chips are still mock UI labels.
+        const selectedDayData = days.find((day) => day.label === selectedDay);
+
+        const matchesDay = selectedDayData
+        ? game.game_date === selectedDayData.fullDate
+        : true;
+
+        return matchesLocation && matchesSearch && matchesDay;
       })
       .sort(
-        (a, b) => convertTimeToMinutes(a.time) - convertTimeToMinutes(b.time)
+        (a, b) =>
+          convertTimeToMinutes(a.start_time) - convertTimeToMinutes(b.start_time)
       );
-  }, [gamesByLocation, searchQuery, selectedDay, selectedLocation]);
+  }, [games, searchQuery, selectedDay, selectedLocation]);
 
-  const openGameDetails = (game: Game) => {
+  const openGameDetails = (game: PickupGame) => {
     router.push({
       pathname: "/(tabs)/pickups/[id]",
       params: {
-        id: game.id.toString(),
-        title: game.title,
-        date: game.date,
-        time: game.time,
-        spotsLeft: game.spotsLeft.toString(),
-        price: game.price,
-        location: selectedLocation,
-        image: game.image,
+        id: game.id,
+        title: game.format,
+        date: game.game_date,
+        time: formatTime(game.start_time),
+        spotsLeft: game.max_players.toString(),
+        price: `$${game.price_per_player}`,
+        location: formatLocationForUi(game.location),
+        image: locationImageMap[game.location] ?? "https://picsum.photos/1200/700",
+        fieldName: game.field_name,
+        surface: game.surface,
       },
     });
   };
+
+  if (loading) {
+    return (
+      <View style={styles.screen}>
+        <View style={styles.loadingWrap}>
+          <Text style={styles.loadingText}>Loading games...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -202,7 +179,7 @@ export default function PickupsScreen() {
 
         <TextInput
           style={styles.searchInput}
-          placeholder="Search game, time, or location"
+          placeholder="Search game, time, field, or location"
           placeholderTextColor="rgba(255,255,255,0.7)"
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -283,20 +260,39 @@ export default function PickupsScreen() {
               style={styles.card}
               onPress={() => openGameDetails(game)}
             >
-              <Image source={{ uri: game.image }} style={styles.cardImage} />
+              <Image
+                source={{
+                  uri:
+                    locationImageMap[game.location] ??
+                    "https://picsum.photos/1200/700",
+                }}
+                style={styles.cardImage}
+              />
 
               <View style={styles.cardTopRow}>
-                <Text style={styles.cardTitle}>{game.title}</Text>
-                <Text style={styles.price}>{game.price}</Text>
+                <Text style={styles.cardTitle}>{game.format}</Text>
+                <Text style={styles.price}>${game.price_per_player}</Text>
               </View>
 
-              <Text style={styles.cardDateTime}>
-                {game.date} • {game.time}
+              <Text style={styles.fieldInfo}>
+                {game.field_name} • {game.surface}
               </Text>
+
+              <Text style={styles.cardDateTime}>
+                {formatTime(game.start_time)}
+             </Text>
 
               <View style={styles.bottomRow}>
                 <Text style={styles.spotsText}>
-                  {game.spotsLeft} {game.spotsLeft === 1 ? "spot" : "spots"} left
+                  <Text style={styles.spotsNumber}>
+                    {game.pickup_game_players?.filter(
+                      (player) => player.status === "joined"
+                      ).length ?? 0}
+                    </Text>
+                    {" / "}
+                    <Text style={styles.spotsNumber}>
+                      {game.max_players}
+                  </Text>
                 </Text>
 
                 <View style={styles.detailsPill}>
@@ -321,6 +317,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#1337f6",
     paddingTop: 100,
     paddingHorizontal: 20,
+  },
+
+  loadingWrap: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  loadingText: {
+    color: "#ffffff",
+    fontSize: 18,
+    fontFamily: "AfacadBold",
   },
 
   topSection: {
@@ -484,14 +492,21 @@ const styles = StyleSheet.create({
 
   price: {
     color: "#F2DD77",
-    fontSize: 18,
+    fontSize: 25,
     fontFamily: "AfacadBold",
+  },
+
+  fieldInfo: {
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 14,
+    fontFamily: "Afacad",
+    marginBottom: 6,
   },
 
   cardDateTime: {
     color: "rgba(255,255,255,0.9)",
-    fontSize: 14,
-    fontFamily: "Afacad",
+    fontSize: 25,
+    fontFamily: "AfacadBold",
     marginBottom: 14,
   },
 
@@ -503,7 +518,7 @@ const styles = StyleSheet.create({
 
   spotsText: {
     color: "rgba(255,255,255,0.85)",
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: "Afacad",
   },
 
@@ -527,4 +542,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 20,
   },
+
+  spotsNumber: {
+    color: "#F2DD77",
+    fontFamily: "AfacadBold",
+    fontSize: 20,
+  }
 });

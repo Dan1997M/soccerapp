@@ -1,5 +1,7 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useState } from "react";
 import {
+  Alert,
   Image,
   Linking,
   Platform,
@@ -10,9 +12,14 @@ import {
   Text,
   View,
 } from "react-native";
+import {
+  canBackOutOfGame,
+  hasUserJoinedGame,
+  leavePickupGame,
+} from "../../../lib/pickupGames";
 
 export default function PickupDetailsScreen() {
-  const { title, date, time, spotsLeft, price, location, image } =
+  const { id, title, date, time, spotsLeft, price, location, image } =
     useLocalSearchParams<{
       id?: string;
       title?: string;
@@ -26,12 +33,57 @@ export default function PickupDetailsScreen() {
 
   const remainingSpots = Number(spotsLeft || 0);
 
+  const [hasJoined, setHasJoined] = useState(false);
+  const [canBackOut, setCanBackOut] = useState(false);
+  const [loadingState, setLoadingState] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      async function loadJoinState() {
+        try {
+          if (!id) return;
+
+          setLoadingState(true);
+
+          const joined = await hasUserJoinedGame(id);
+          let backOutAllowed = false;
+
+          if (joined) {
+            backOutAllowed = await canBackOutOfGame(id);
+          }
+
+          if (isActive) {
+            setHasJoined(joined);
+            setCanBackOut(backOutAllowed);
+          }
+        } catch (error) {
+          console.log("Error loading join state:", error);
+        } finally {
+          if (isActive) {
+            setLoadingState(false);
+          }
+        }
+      }
+
+      loadJoinState();
+
+      return () => {
+        isActive = false;
+      };
+    }, [id])
+  );
+  const [joining, setJoining] = useState(false);
   const handleJoin = () => {
-    if (remainingSpots <= 0) return;
+    if (remainingSpots <= 0 || joining) return;
+
+    setJoining(true);
 
     router.push({
       pathname: "/checkout",
       params: {
+        id: id || "",
         type: "pickup",
         title: title || "",
         location: location || "",
@@ -40,6 +92,52 @@ export default function PickupDetailsScreen() {
         price: price || "",
       },
     });
+
+    
+  };
+
+  const handleBackOut = async () => {
+    try {
+      if (!id) {
+        throw new Error("Game ID missing");
+      }
+
+      Alert.alert(
+        "Back Out?",
+        "If you cancel 24 or more hours before the game, you will receive a full refund.",
+        [
+          { text: "Keep Spot", style: "cancel" },
+          {
+            text: "Back Out",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const result = await leavePickupGame(id);
+
+                Alert.alert(
+                  "Cancelled",
+                  result.refundEligible
+                    ? "You backed out in time. Your refund is marked as pending."
+                    : "You backed out too late for a refund."
+                );
+
+                setHasJoined(false);
+                setCanBackOut(false);
+
+                router.replace("/(tabs)/pickups");
+              } catch (error: any) {
+                Alert.alert(
+                  "Error",
+                  error.message || "Could not back out of game"
+                );
+              }
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Could not back out of game");
+    }
   };
 
   const handleInviteInApp = () => {
@@ -68,6 +166,10 @@ export default function PickupDetailsScreen() {
       await Linking.openURL(url);
     }
   };
+
+  const showJoinButton = !loadingState && !hasJoined && remainingSpots > 0;
+  const showBackOutButton = !loadingState && hasJoined && canBackOut;
+  const showNoActionButton = !loadingState && hasJoined && !canBackOut;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -124,6 +226,8 @@ export default function PickupDetailsScreen() {
                 ? "5v5"
                 : title?.includes("7v7")
                 ? "7v7"
+                : title?.includes("9v9")
+                ? "9v9"
                 : "Open Play"}
             </Text>
           </View>
@@ -148,23 +252,27 @@ export default function PickupDetailsScreen() {
           </Pressable>
         </View>
 
-        <Pressable
-          style={[
-            styles.joinButton,
-            remainingSpots === 0 && styles.fullButton,
-          ]}
-          onPress={handleJoin}
-          disabled={remainingSpots === 0}
-        >
-          <Text
-            style={[
-              styles.joinButtonText,
-              remainingSpots === 0 && styles.fullButtonText,
-            ]}
-          >
-            {remainingSpots === 0 ? "Full" : "Join Game"}
-          </Text>
-        </Pressable>
+        {showJoinButton && (
+          <Pressable style={styles.joinButton} onPress={handleJoin}>
+            <Text style={styles.joinButtonText}>
+              {joining ? "Processing..." : "Join Game"}
+            </Text>
+          </Pressable>
+        )}
+
+        {showBackOutButton && (
+          <Pressable style={styles.backOutButton} onPress={handleBackOut}>
+            <Text style={styles.backOutButtonText}>Back Out?</Text>
+          </Pressable>
+        )}
+
+        {showNoActionButton && (
+          <View style={styles.lockedCard}>
+            <Text style={styles.lockedText}>
+              This game can no longer be cancelled.
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -311,11 +419,37 @@ const styles = StyleSheet.create({
     fontFamily: "AfacadBold",
   },
 
-  fullButton: {
-    backgroundColor: "rgba(255,255,255,0.12)",
+  backOutButton: {
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderRadius: 22,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: "#F2DD77",
   },
 
-  fullButtonText: {
-    color: "rgba(255,255,255,0.7)",
+  backOutButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontFamily: "AfacadBold",
+  },
+
+  lockedCard: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 22,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+
+  lockedText: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 15,
+    fontFamily: "AfacadBold",
+    textAlign: "center",
   },
 });

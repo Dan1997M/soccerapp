@@ -1,8 +1,18 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { joinPickupGame } from "../lib/pickupGames";
 
 export default function CheckoutScreen() {
   const {
+    id,
     type,
     title,
     location,
@@ -12,6 +22,7 @@ export default function CheckoutScreen() {
     field,
     duration,
   } = useLocalSearchParams<{
+    id?: string;
     type?: string;
     title?: string;
     location?: string;
@@ -22,11 +33,34 @@ export default function CheckoutScreen() {
     duration?: string;
   }>();
 
-  const handleProceedToPayment = () => {
-    Alert.alert(
-      "Payment",
-      "This is where your app would open the online payment flow."
-    );
+  const handleProceedToPayment = async () => {
+    try {
+      if (type === "pickup") {
+        if (!id) {
+          throw new Error("Game ID missing");
+        }
+
+        await joinPickupGame(id);
+
+        Alert.alert("Payment Successful", "You have joined the pickup game.", [
+          {
+            text: "OK",
+            onPress: () => {
+              router.replace("/(tabs)/pickups");
+            },
+          },
+        ]);
+
+        return;
+      }
+
+      Alert.alert(
+        "Coming Soon",
+        "This payment flow is not connected yet for this booking type."
+      );
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Could not complete payment");
+    }
   };
 
   const headerLabel =
@@ -38,7 +72,10 @@ export default function CheckoutScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.back()}>
             <Text style={styles.backArrow}>←</Text>
