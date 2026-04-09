@@ -1,173 +1,251 @@
+import { fetchPickupGames, PickupGame } from "@/lib/pickupGames";
+import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
+  ActivityIndicator,
   Image,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { fetchPickupGames, PickupGame } from "../../../lib/pickupGames";
-
-const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function getWeekDays() {
-  const result = [];
-  const today = new Date();
-
-  for (let i = 0; i < 7; i++) {
-    const current = new Date(today);
-    current.setDate(today.getDate() + i);
-
-    result.push({
-      label: i === 0 ? "Today" : weekdayLabels[current.getDay()],
-      date: current.getDate().toString(),
-      fullDate: current.toISOString().split("T")[0],
-    });
-  }
-
-  return result;
-}
-
-const days = getWeekDays();
 
 const locations = ["Hattrick", "Patio", "Oakridge"];
 
-const locationImageMap: Record<string, string> = {
-  hattrick: "https://picsum.photos/id/1011/1200/700",
-  patio: "https://picsum.photos/id/1035/1200/700",
-  oakridge: "https://picsum.photos/id/1043/1200/700",
+type DayChip = {
+  label: string;
+  date: string;
+  isoDate: string;
 };
 
-function formatLocationForDb(location: string) {
-  return location.toLowerCase();
+type DisplayGame = {
+  id: string;
+  title: string;
+  date: string;
+  displayDayLabel: string;
+  time: string;
+  spotsLeft: number;
+  price: string;
+  image: string;
+  joined: boolean;
+  location: string;
+  sortDateTime: number;
+};
+
+function formatLocalISODate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-function formatLocationForUi(location: string) {
+function getNext8Days(): DayChip[] {
+  const today = new Date();
+
+  return Array.from({ length: 8 }).map((_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + index);
+
+    const label =
+      index === 0
+        ? "Today"
+        : date.toLocaleDateString("en-US", { weekday: "short" });
+
+    return {
+      label,
+      date: String(date.getDate()),
+      isoDate: formatLocalISODate(date),
+    };
+  });
+}
+
+function formatLocation(location: string) {
   return location.charAt(0).toUpperCase() + location.slice(1);
 }
 
 function formatTime(time: string) {
-  if (!time) return "";
-
-  const [hourString, minuteString] = time.split(":");
-  let hour = Number(hourString);
-  const minute = minuteString ?? "00";
-
-  const suffix = hour >= 12 ? "PM" : "AM";
-
-  if (hour === 0) {
-    hour = 12;
-  } else if (hour > 12) {
-    hour = hour - 12;
-  }
-
-  return `${hour}:${minute} ${suffix}`;
+  const [hours, minutes] = time.split(":");
+  const hourNum = Number(hours);
+  const suffix = hourNum >= 12 ? "PM" : "AM";
+  const twelveHour = hourNum % 12 === 0 ? 12 : hourNum % 12;
+  return `${twelveHour}:${minutes} ${suffix}`;
 }
 
-function convertTimeToMinutes(time: string) {
-  const cleanTime = formatTime(time);
-  const [hourMinute, period] = cleanTime.split(" ");
-  let [hours, minutes] = hourMinute.split(":").map(Number);
+function buildGameDateTime(game: PickupGame) {
+  const [year, month, day] = game.game_date.split("-").map(Number);
+  const [hours, minutes] = game.start_time.split(":").map(Number);
 
-  if (period === "PM" && hours !== 12) {
-    hours += 12;
+  return new Date(year, month - 1, day, hours, minutes).getTime();
+}
+
+function getDisplayLabelFromDays(gameDate: string, days: DayChip[]) {
+  const matchingDay = days.find((day) => day.isoDate === gameDate);
+
+  if (matchingDay) {
+    return matchingDay.label;
   }
 
-  if (period === "AM" && hours === 12) {
-    hours = 0;
-  }
+  const [year, month, day] = gameDate.split("-").map(Number);
+  const localDate = new Date(year, month - 1, day);
 
-  return hours * 60 + minutes;
+  return localDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export default function PickupsScreen() {
-  const days = useMemo(() => getWeekDays(), []);
-  const [selectedDay, setSelectedDay] = useState("Today");
+  const days = useMemo(() => getNext8Days(), []);
+  const [selectedDay, setSelectedDay] = useState(days[0].label);
   const [selectedLocation, setSelectedLocation] = useState("Hattrick");
   const [searchQuery, setSearchQuery] = useState("");
   const [games, setGames] = useState<PickupGame[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadGames();
-  }, []);
+  const selectedDayObj = useMemo(() => {
+    return days.find((day) => day.label === selectedDay) ?? days[0];
+  }, [days, selectedDay]);
 
-  async function loadGames() {
+  const loadGames = async () => {
     try {
-      setLoading(true);
-      const data = await fetchPickupGames();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setUserId(user?.id ?? null);
+
+      const data = await fetchPickupGames(selectedLocation.toLowerCase());
       setGames(data);
     } catch (error) {
-      console.log("Error fetching games:", error);
-      Alert.alert("Error", "Could not load pickup games.");
-    } finally {
-      setLoading(false);
+      console.log("Error fetching pickup games:", error);
     }
-  }
+  };
+
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true);
+      await loadGames();
+      setLoading(false);
+    };
+
+    run();
+  }, [selectedLocation]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadGames();
+    setRefreshing(false);
+  };
+
+  const mappedGames = useMemo<DisplayGame[]>(() => {
+    return games.map((game) => {
+      const joinedPlayers =
+        game.pickup_game_players?.filter(
+          (player) => player.status === "joined"
+        ) || [];
+
+      const joinedCount = joinedPlayers.length;
+      const spotsLeft = Math.max(0, game.max_players - joinedCount);
+      const hasJoined = !!joinedPlayers.find(
+        (player) => player.user_id === userId
+      );
+
+      return {
+        id: game.id,
+        title: `${game.format} • ${game.field_name}`,
+        date: game.game_date,
+        displayDayLabel: getDisplayLabelFromDays(game.game_date, days),
+        time: `${formatTime(game.start_time)} - ${formatTime(game.end_time)}`,
+        spotsLeft,
+        price: `$${game.price_per_player}`,
+        image: "https://picsum.photos/1200/700",
+        joined: hasJoined,
+        location: formatLocation(game.location),
+        sortDateTime: buildGameDateTime(game),
+      };
+    });
+  }, [games, userId, days]);
 
   const filteredGames = useMemo(() => {
-    return games
-      .filter((game) => {
-        const matchesLocation =
-          game.location === formatLocationForDb(selectedLocation);
+    const query = searchQuery.trim().toLowerCase();
 
-        const query = searchQuery.toLowerCase().trim();
+    return mappedGames
+      .filter((game) => {
+        const matchesDay = game.date === selectedDayObj.isoDate;
 
         const matchesSearch =
           query.length === 0 ||
-          game.format.toLowerCase().includes(query) ||
-          game.field_name.toLowerCase().includes(query) ||
-          game.surface.toLowerCase().includes(query) ||
-          game.location.toLowerCase().includes(query) ||
-          formatTime(game.start_time).toLowerCase().includes(query);
+          game.title.toLowerCase().includes(query) ||
+          game.time.toLowerCase().includes(query) ||
+          game.location.toLowerCase().includes(query);
 
-        // Day filter is temporarily not connected yet because your seeded SQL dates
-        // are real database dates, while these chips are still mock UI labels.
-        const selectedDayData = days.find((day) => day.label === selectedDay);
-
-        const matchesDay = selectedDayData
-        ? game.game_date === selectedDayData.fullDate
-        : true;
-
-        return matchesLocation && matchesSearch && matchesDay;
+        return matchesDay && matchesSearch;
       })
-      .sort(
-        (a, b) =>
-          convertTimeToMinutes(a.start_time) - convertTimeToMinutes(b.start_time)
-      );
-  }, [games, searchQuery, selectedDay, selectedLocation]);
+      .sort((a, b) => a.sortDateTime - b.sortDateTime);
+  }, [mappedGames, searchQuery, selectedDayObj]);
 
-  const openGameDetails = (game: PickupGame) => {
+  const myGames = useMemo(() => {
+    return filteredGames.filter((game) => game.joined);
+  }, [filteredGames]);
+
+  const availableGames = useMemo(() => {
+    return filteredGames.filter((game) => !game.joined);
+  }, [filteredGames]);
+
+  const openGameDetails = (game: DisplayGame) => {
     router.push({
       pathname: "/(tabs)/pickups/[id]",
       params: {
         id: game.id,
-        title: game.format,
-        date: game.game_date,
-        time: formatTime(game.start_time),
-        spotsLeft: game.max_players.toString(),
-        price: `$${game.price_per_player}`,
-        location: formatLocationForUi(game.location),
-        image: locationImageMap[game.location] ?? "https://picsum.photos/1200/700",
-        fieldName: game.field_name,
-        surface: game.surface,
+        title: game.title,
+        date: game.displayDayLabel,
+        time: game.time,
+        spotsLeft: game.spotsLeft.toString(),
+        price: game.price,
+        location: game.location,
+        image: game.image,
       },
     });
   };
 
-  if (loading) {
-    return (
-      <View style={styles.screen}>
-        <View style={styles.loadingWrap}>
-          <Text style={styles.loadingText}>Loading games...</Text>
+  const renderGameCard = (game: DisplayGame, isMyGame = false) => (
+    <Pressable
+      key={game.id}
+      style={styles.card}
+      onPress={() => openGameDetails(game)}
+    >
+      <Image source={{ uri: game.image }} style={styles.cardImage} />
+
+      <View style={styles.cardTopRow}>
+        <Text style={styles.cardTitle}>{game.title}</Text>
+        <Text style={styles.price}>{game.price}</Text>
+      </View>
+
+      <Text style={styles.cardDateTime}>
+        {game.displayDayLabel} • {game.time}
+      </Text>
+
+      <View style={styles.bottomRow}>
+        <Text style={styles.spotsText}>
+          {game.spotsLeft} {game.spotsLeft === 1 ? "spot" : "spots"} left
+        </Text>
+
+        <View style={isMyGame ? styles.joinedPill : styles.detailsPill}>
+          <Text
+            style={isMyGame ? styles.joinedPillText : styles.detailsPillText}
+          >
+            {isMyGame ? "Joined" : "View Details"}
+          </Text>
         </View>
       </View>
-    );
-  }
+    </Pressable>
+  );
 
   return (
     <View style={styles.screen}>
@@ -179,7 +257,7 @@ export default function PickupsScreen() {
 
         <TextInput
           style={styles.searchInput}
-          placeholder="Search game, time, field, or location"
+          placeholder="Search game, time, or location"
           placeholderTextColor="rgba(255,255,255,0.7)"
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -192,11 +270,9 @@ export default function PickupsScreen() {
         >
           {days.map((day) => (
             <Pressable
-              key={day.label}
+              key={day.isoDate}
               style={
-                day.label === selectedDay
-                  ? styles.dayChipActive
-                  : styles.dayChip
+                day.label === selectedDay ? styles.dayChipActive : styles.dayChip
               }
               onPress={() => setSelectedDay(day.label)}
             >
@@ -248,65 +324,39 @@ export default function PickupsScreen() {
         </View>
       </View>
 
-      <ScrollView
-        style={styles.cardsScroll}
-        contentContainerStyle={styles.cardsWrapper}
-        showsVerticalScrollIndicator={false}
-      >
-        {filteredGames.length > 0 ? (
-          filteredGames.map((game) => (
-            <Pressable
-              key={game.id}
-              style={styles.card}
-              onPress={() => openGameDetails(game)}
-            >
-              <Image
-                source={{
-                  uri:
-                    locationImageMap[game.location] ??
-                    "https://picsum.photos/1200/700",
-                }}
-                style={styles.cardImage}
-              />
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color="#F2DD77" />
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.cardsScroll}
+          contentContainerStyle={styles.cardsWrapper}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {myGames.length > 0 && (
+            <View style={styles.sectionWrapper}>
+              <Text style={styles.sectionTitle}>My Games</Text>
+              {myGames.map((game) => renderGameCard(game, true))}
+            </View>
+          )}
 
-              <View style={styles.cardTopRow}>
-                <Text style={styles.cardTitle}>{game.format}</Text>
-                <Text style={styles.price}>${game.price_per_player}</Text>
-              </View>
+          <View style={styles.sectionWrapper}>
+            <Text style={styles.sectionTitle}>Available Games</Text>
 
-              <Text style={styles.fieldInfo}>
-                {game.field_name} • {game.surface}
+            {availableGames.length > 0 ? (
+              availableGames.map((game) => renderGameCard(game))
+            ) : (
+              <Text style={styles.noGamesText}>
+                No available games for this day at {selectedLocation}.
               </Text>
-
-              <Text style={styles.cardDateTime}>
-                {formatTime(game.start_time)}
-             </Text>
-
-              <View style={styles.bottomRow}>
-                <Text style={styles.spotsText}>
-                  <Text style={styles.spotsNumber}>
-                    {game.pickup_game_players?.filter(
-                      (player) => player.status === "joined"
-                      ).length ?? 0}
-                    </Text>
-                    {" / "}
-                    <Text style={styles.spotsNumber}>
-                      {game.max_players}
-                  </Text>
-                </Text>
-
-                <View style={styles.detailsPill}>
-                  <Text style={styles.detailsPillText}>View Details</Text>
-                </View>
-              </View>
-            </Pressable>
-          ))
-        ) : (
-          <Text style={styles.noGamesText}>
-            No games available for this day at {selectedLocation}.
-          </Text>
-        )}
-      </ScrollView>
+            )}
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -317,18 +367,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#1337f6",
     paddingTop: 100,
     paddingHorizontal: 20,
-  },
-
-  loadingWrap: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  loadingText: {
-    color: "#ffffff",
-    fontSize: 18,
-    fontFamily: "AfacadBold",
   },
 
   topSection: {
@@ -461,10 +499,28 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
 
+  loadingWrap: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  sectionWrapper: {
+    marginBottom: 8,
+  },
+
+  sectionTitle: {
+    color: "#ffffff",
+    fontSize: 22,
+    fontFamily: "AfacadBold",
+    marginBottom: 12,
+  },
+
   card: {
     backgroundColor: "rgba(255,255,255,0.18)",
     borderRadius: 24,
     padding: 18,
+    marginBottom: 14,
   },
 
   cardImage: {
@@ -492,21 +548,14 @@ const styles = StyleSheet.create({
 
   price: {
     color: "#F2DD77",
-    fontSize: 25,
+    fontSize: 18,
     fontFamily: "AfacadBold",
-  },
-
-  fieldInfo: {
-    color: "rgba(255,255,255,0.88)",
-    fontSize: 14,
-    fontFamily: "Afacad",
-    marginBottom: 6,
   },
 
   cardDateTime: {
     color: "rgba(255,255,255,0.9)",
-    fontSize: 25,
-    fontFamily: "AfacadBold",
+    fontSize: 14,
+    fontFamily: "Afacad",
     marginBottom: 14,
   },
 
@@ -518,7 +567,7 @@ const styles = StyleSheet.create({
 
   spotsText: {
     color: "rgba(255,255,255,0.85)",
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "Afacad",
   },
 
@@ -535,17 +584,26 @@ const styles = StyleSheet.create({
     fontFamily: "AfacadBold",
   },
 
+  joinedPill: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#F2DD77",
+  },
+
+  joinedPillText: {
+    color: "#F2DD77",
+    fontSize: 13,
+    fontFamily: "AfacadBold",
+  },
+
   noGamesText: {
     color: "#ffffff",
     fontSize: 16,
     fontFamily: "Afacad",
     textAlign: "center",
-    marginTop: 20,
+    marginTop: 6,
   },
-
-  spotsNumber: {
-    color: "#F2DD77",
-    fontFamily: "AfacadBold",
-    fontSize: 20,
-  }
 });
