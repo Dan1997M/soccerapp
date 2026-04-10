@@ -170,6 +170,7 @@ export default function PickupDetailsScreen() {
   const showJoinButton = !loadingState && !hasJoined && remainingSpots > 0;
   const showBackOutButton = !loadingState && hasJoined && canBackOut;
   const showNoActionButton = !loadingState && hasJoined && !canBackOut;
+  const showFullMessage = !loadingState && !hasJoined && remainingSpots <= 0;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -271,6 +272,12 @@ export default function PickupDetailsScreen() {
             <Text style={styles.lockedText}>
               This game can no longer be cancelled.
             </Text>
+          </View>
+        )}
+
+        {showFullMessage && (
+          <View style={styles.lockedCard}>
+            <Text style={styles.lockedText}>This game is full.</Text>
           </View>
         )}
       </ScrollView>

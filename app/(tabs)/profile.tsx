@@ -1,9 +1,14 @@
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/providers/AuthProvider";
 import { router } from "expo-router";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-
-
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 export default function ProfileScreen() {
   const { profile, loading } = useProfile();
@@ -15,35 +20,48 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
       <Image
-        source={{ uri: "https://randomuser.me/api/portraits/men/10.jpg" }}
+        source={{ uri: "https://via.placeholder.com/200x200.png?text=Profile" }}
         style={styles.avatar}
       />
 
       <Text style={styles.name}>
-        {loading ? "loading..." : profile?.full_name}
+        {loading ? "loading..." : profile?.full_name || "Player"}
       </Text>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>My Profile</Text>
-        <Text style={styles.detailText}>Preferred Position: Midfielder</Text>
-        <Text style={styles.detailText}>Skill Level: Intermediate</Text>
-        <Text style={styles.detailText}>Favorite Field: Hattrick</Text>
+        <Text style={styles.detailText}>
+          Profile details like photo, position, and skill level can be added
+          later in Edit Profile.
+        </Text>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>My Activity</Text>
 
-        <Pressable style={styles.rowButton}>
+        <Pressable
+          style={styles.rowButton}
+          onPress={() => router.push("/my-pickup-games")}
+        >
           <Text style={styles.rowButtonText}>My Pickup Games</Text>
         </Pressable>
 
-        <Pressable style={styles.rowButton}>
+        <Pressable
+          style={styles.rowButton}
+          onPress={() => router.push("/my-rentals")}
+        >
           <Text style={styles.rowButtonText}>My Rentals</Text>
         </Pressable>
 
-        <Pressable style={styles.rowButton}>
+        <Pressable
+          style={styles.rowButton}
+          onPress={() => router.push("/friends?fromProfile=true")}
+        >
           <Text style={styles.rowButtonText}>My Friends</Text>
         </Pressable>
       </View>
@@ -51,15 +69,24 @@ export default function ProfileScreen() {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Settings</Text>
 
-        <Pressable style={styles.rowButton}>
+        <Pressable
+          style={styles.rowButton}
+          onPress={() => router.push("/edit-profile")}
+        >
           <Text style={styles.rowButtonText}>Edit Profile</Text>
         </Pressable>
 
-        <Pressable style={styles.rowButton}>
+        <Pressable
+          style={styles.rowButton}
+          onPress={() => router.push("/notifications")}
+        >
           <Text style={styles.rowButtonText}>Notifications</Text>
         </Pressable>
 
-        <Pressable style={styles.rowButton}>
+        <Pressable
+          style={styles.rowButton}
+          onPress={() => router.push("/payment-methods")}
+        >
           <Text style={styles.rowButtonText}>Payment Methods</Text>
         </Pressable>
       </View>
@@ -93,20 +120,14 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: 55,
     marginBottom: 14,
+    backgroundColor: "rgba(255,255,255,0.15)",
   },
 
   name: {
     color: "#ffffff",
     fontSize: 28,
     fontFamily: "AfacadBold",
-    marginBottom: 4,
-  },
-
-  username: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 15,
-    fontFamily: "Afacad",
-    marginBottom: 22,
+    marginBottom: 10,
   },
 
   card: {

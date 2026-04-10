@@ -24,15 +24,19 @@ export default function FriendsScreen() {
     inviteGameDate,
     inviteGameTime,
     inviteSpotsLeft,
+    fromProfile,
   } = useLocalSearchParams<{
     inviteGameTitle?: string;
     inviteGameLocation?: string;
     inviteGameDate?: string;
     inviteGameTime?: string;
     inviteSpotsLeft?: string;
+    fromProfile?: string;
   }>();
 
   const isInviteMode = !!inviteGameTitle;
+  const cameFromProfile = fromProfile === "true";
+  const showBackArrow = isInviteMode || cameFromProfile;
   const inviteLimit = Number(inviteSpotsLeft || 0);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,6 +80,21 @@ export default function FriendsScreen() {
       inviteSpotsLeft: undefined,
     });
   };
+
+  const handleBack = () => {
+    if (isInviteMode) {
+      clearInviteMode();
+    router.back();
+    return;
+  }
+
+  if (cameFromProfile) {
+    router.replace("/(tabs)/profile");
+    return;
+  }
+
+  router.back();
+};
 
   const handleAddPlayer = (player: Player) => {
     addFriend(player);
@@ -138,14 +157,8 @@ export default function FriendsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.headerRow}>
-        {isInviteMode && (
-          <Pressable
-            style={styles.backButton}
-            onPress={() => {
-              clearInviteMode();
-              router.back();
-            }}
-          >
+        {showBackArrow && (
+          <Pressable style={styles.backButton} onPress={handleBack}>
             <Text style={styles.backArrow}>←</Text>
           </Pressable>
         )}

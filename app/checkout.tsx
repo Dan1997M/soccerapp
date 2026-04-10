@@ -1,3 +1,4 @@
+import { createRental } from "@/lib/rentals";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   Alert,
@@ -47,6 +48,33 @@ export default function CheckoutScreen() {
             text: "OK",
             onPress: () => {
               router.replace("/(tabs)/pickups");
+            },
+          },
+        ]);
+
+        return;
+      }
+
+      if (type === "rental") {
+        if (!location || !date || !field || !time || !price) {
+          throw new Error("Missing rental details");
+        }
+
+        await createRental({
+          location,
+          rental_date: date,
+          field_name: field,
+          field_type: title || "Field Rental",
+          start_time: time,
+          duration: duration || "1 hour",
+          price,
+        });
+
+        Alert.alert("Booking Confirmed", "Your field has been reserved.", [
+          {
+            text: "OK",
+            onPress: () => {
+              router.replace("/my-rentals");
             },
           },
         ]);

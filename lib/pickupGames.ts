@@ -72,13 +72,25 @@ export async function joinPickupGame(gameId: string) {
 
   const { data: game, error: gameError } = await supabase
     .from("pickup_games")
-    .select("price_per_player")
+    .select("price_per_player, max_players")
     .eq("id", gameId)
     .single();
 
   if (gameError || !game) {
     throw new Error("Game not found.");
   }
+
+  const { data: joinedRows, error: joinedError } = await supabase
+    .from("pickup_game_players")
+    .select("id, user_id, status")
+    .eq("game_id", gameId)
+    .eq("status", "joined");
+
+  if (joinedError) {
+    throw joinedError;
+  }
+
+  const joinedCount = joinedRows?.length ?? 0;
 
   const { data: existingRow, error: existingError } = await supabase
     .from("pickup_game_players")
@@ -89,6 +101,16 @@ export async function joinPickupGame(gameId: string) {
 
   if (existingError) {
     throw existingError;
+  }
+
+  // if user is not already joined and game is full, block join
+  if (!existingRow && joinedCount >= game.max_players) {
+    throw new Error("This game is full.");
+  }
+
+  // if user had cancelled before, allow rejoin only if a spot is available
+  if (existingRow?.status === "cancelled" && joinedCount >= game.max_players) {
+    throw new Error("This game is full.");
   }
 
   if (existingRow) {
