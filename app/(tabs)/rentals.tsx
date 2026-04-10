@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Calendar } from "react-native-calendars";
 
@@ -38,16 +38,29 @@ const locationInfo = {
   },
 };
 
+function formatLocalISODate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export default function RentalsScreen() {
+  const todayISO = useMemo(() => formatLocalISODate(new Date()), []);
   const [selectedLocation, setSelectedLocation] = useState("Hattrick");
-  const [selectedDate, setSelectedDate] = useState("2026-03-18");
+  const [selectedDate, setSelectedDate] = useState(todayISO);
 
   const info = locationInfo[selectedLocation as keyof typeof locationInfo];
 
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={styles.title}>Field Rentals</Text>
-      <Text style={styles.subtitle}>Choose a location to view field details</Text>
+      <Text style={styles.subtitle}>
+        Choose a location to view field details
+      </Text>
 
       <View style={styles.locationRow}>
         {locations.map((location) => (
@@ -77,6 +90,7 @@ export default function RentalsScreen() {
         <Text style={styles.sectionTitle}>Select Date</Text>
 
         <Calendar
+          minDate={todayISO}
           onDayPress={(day) => setSelectedDate(day.dateString)}
           markedDates={{
             [selectedDate]: {
@@ -95,7 +109,9 @@ export default function RentalsScreen() {
           }}
         />
 
-        <Text style={styles.selectedDateText}>Selected Date: {selectedDate}</Text>
+        <Text style={styles.selectedDateText}>
+          Selected Date: {selectedDate}
+        </Text>
       </View>
 
       <View style={styles.infoCard}>
@@ -109,7 +125,9 @@ export default function RentalsScreen() {
           </Text>
         ))}
 
-        <Text style={[styles.sectionSubtitle, { marginTop: 12 }]}>Field Rules</Text>
+        <Text style={[styles.sectionSubtitle, { marginTop: 12 }]}>
+          Field Rules
+        </Text>
         <Text style={styles.detailText}>{info.shoes}</Text>
 
         <View style={styles.shadowWrapper}>

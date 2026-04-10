@@ -1,6 +1,14 @@
-import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { fetchBookedRentalSlots } from "@/lib/rentals";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 const bookingData = {
   Hattrick: [
@@ -61,6 +69,54 @@ const bookingData = {
   ],
 };
 
+function formatLocalISODate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function convertDisplayTimeTo24Hour(time: string) {
+  const [hourMinute, period] = time.split(" ");
+  let [hours, minutes] = hourMinute.split(":").map(Number);
+
+  if (period === "PM" && hours !== 12) {
+    hours += 12;
+  }
+
+  if (period === "AM" && hours === 12) {
+    hours = 0;
+  }
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+    2,
+    "0"
+  )}:00`;
+}
+
+function isPastTimeForSelectedDate(selectedDate: string, slot: string) {
+  const todayISO = formatLocalISODate(new Date());
+
+  if (selectedDate !== todayISO) {
+    return false;
+  }
+
+  const slot24 = convertDisplayTimeTo24Hour(slot);
+  const [hours, minutes] = slot24.split(":").map(Number);
+
+  const now = new Date();
+  const slotDateTime = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    hours,
+    minutes,
+    0
+  );
+
+  return slotDateTime.getTime() <= now.getTime();
+}
+
 export default function RentalBookingScreen() {
   const { location, date } = useLocalSearchParams<{
     location?: string;
@@ -68,14 +124,61 @@ export default function RentalBookingScreen() {
   }>();
 
   const selectedLocation = (location as keyof typeof bookingData) || "Hattrick";
+  const selectedDate = date || formatLocalISODate(new Date());
   const fields = bookingData[selectedLocation];
 
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   const chosenField = useMemo(() => {
     return fields.find((item) => item.field === selectedField) ?? null;
   }, [fields, selectedField]);
+
+  const loadBookedSlots = useCallback(async () => {
+    if (!selectedField || !selectedDate) {
+      setBookedSlots([]);
+      return;
+    }
+
+    try {
+      setLoadingSlots(true);
+
+      const booked = await fetchBookedRentalSlots({
+        location: selectedLocation,
+        rental_date: selectedDate,
+        field_name: selectedField,
+      });
+
+      setBookedSlots(booked);
+    } catch (error) {
+      console.log("Error loading booked rental slots:", error);
+      setBookedSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  }, [selectedField, selectedLocation, selectedDate]);
+
+  useEffect(() => {
+    loadBookedSlots();
+  }, [loadBookedSlots]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadBookedSlots();
+    }, [loadBookedSlots])
+  );
+
+  useEffect(() => {
+    if (!selectedField) return;
+
+    const interval = setInterval(() => {
+      loadBookedSlots();
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [selectedField, loadBookedSlots]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -87,7 +190,7 @@ export default function RentalBookingScreen() {
 
       <Text style={styles.title}>Choose Field</Text>
       <Text style={styles.subtitle}>
-        {selectedLocation} • {date}
+        {selectedLocation} • {selectedDate}
       </Text>
 
       <Text style={styles.sectionTitle}>Available Fields</Text>
@@ -127,25 +230,61 @@ export default function RentalBookingScreen() {
         <>
           <Text style={styles.sectionTitle}>Available Times</Text>
 
-          <View style={styles.timeGrid}>
-            {chosenField.slots.map((slot) => {
-              const isSelected = selectedTime === slot;
+          {loadingSlots ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator size="small" color="#F2DD77" />
+              <Text style={styles.loadingText}>Checking availability...</Text>
+            </View>
+          ) : (
+            <View style={styles.timeGrid}>
+              {chosenField.slots.map((slot) => {
+                const slot24Hour = convertDisplayTimeTo24Hour(slot);
+                const isBooked = bookedSlots.includes(slot24Hour);
+                const isPast = isPastTimeForSelectedDate(selectedDate, slot);
+                const isUnavailable = isBooked || isPast;
+                const isSelected = selectedTime === slot;
 
-              return (
-                <Pressable
-                  key={slot}
-                  style={isSelected ? styles.timeButtonActive : styles.timeButton}
-                  onPress={() => setSelectedTime(slot)}
-                >
-                  <Text
-                    style={isSelected ? styles.timeTextActive : styles.timeText}
+                return (
+                  <Pressable
+                    key={slot}
+                    style={
+                      isUnavailable
+                        ? styles.timeButtonDisabled
+                        : isSelected
+                        ? styles.timeButtonActive
+                        : styles.timeButton
+                    }
+                    onPress={() => {
+                      if (!isUnavailable) {
+                        setSelectedTime(slot);
+                      }
+                    }}
+                    disabled={isUnavailable}
                   >
-                    {slot}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                    <Text
+                      style={
+                        isUnavailable
+                          ? styles.timeTextDisabled
+                          : isSelected
+                          ? styles.timeTextActive
+                          : styles.timeText
+                      }
+                    >
+                      {slot}
+                    </Text>
+
+                    {isBooked && (
+                      <Text style={styles.unavailableText}>Unavailable</Text>
+                    )}
+
+                    {!isBooked && isPast && (
+                      <Text style={styles.unavailableText}>Past Time</Text>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
         </>
       )}
 
@@ -154,7 +293,7 @@ export default function RentalBookingScreen() {
           <Text style={styles.summaryTitle}>Review Booking</Text>
 
           <Text style={styles.summaryText}>Location: {selectedLocation}</Text>
-          <Text style={styles.summaryText}>Date: {date}</Text>
+          <Text style={styles.summaryText}>Date: {selectedDate}</Text>
           <Text style={styles.summaryText}>Field: {chosenField.field}</Text>
           <Text style={styles.summaryText}>Type: {chosenField.type}</Text>
           <Text style={styles.summaryText}>Time: {selectedTime}</Text>
@@ -169,10 +308,10 @@ export default function RentalBookingScreen() {
                   params: {
                     type: "rental",
                     location: selectedLocation,
-                    date: date || "",
+                    date: selectedDate,
                     field: chosenField.field,
                     title: chosenField.type,
-                    time: selectedTime,
+                    time: convertDisplayTimeTo24Hour(selectedTime),
                     duration: "1 hour",
                     price: chosenField.price,
                   },
@@ -277,6 +416,19 @@ const styles = StyleSheet.create({
     fontFamily: "Afacad",
   },
 
+  loadingWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 18,
+  },
+
+  loadingText: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 14,
+    fontFamily: "Afacad",
+  },
+
   timeGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -289,6 +441,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 16,
+    minWidth: 95,
+    alignItems: "center",
   },
 
   timeButtonActive: {
@@ -296,6 +450,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 16,
+    minWidth: 95,
+    alignItems: "center",
+  },
+
+  timeButtonDisabled: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    minWidth: 95,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
   },
 
   timeText: {
@@ -308,6 +475,19 @@ const styles = StyleSheet.create({
     color: "#1337f6",
     fontSize: 14,
     fontFamily: "AfacadBold",
+  },
+
+  timeTextDisabled: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 14,
+    fontFamily: "AfacadBold",
+  },
+
+  unavailableText: {
+    color: "#ffb3b3",
+    fontSize: 11,
+    fontFamily: "Afacad",
+    marginTop: 4,
   },
 
   summaryCard: {

@@ -1,21 +1,40 @@
+import { getLanguage } from "@/lib/language";
 import { useAuth } from "@/providers/AuthProvider";
 import { router } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function StartupScreen() {
   const { session, loading } = useAuth();
+  const [checkingLanguage, setCheckingLanguage] = useState(true);
 
   useEffect(() => {
-    if (!loading && session) {
+    const checkLanguage = async () => {
+      const savedLanguage = await getLanguage();
+
+      if (!savedLanguage) {
+        router.replace("/language");
+        return;
+      }
+
+      setCheckingLanguage(false);
+    };
+
+    checkLanguage();
+  }, []);
+
+  useEffect(() => {
+    if (!checkingLanguage && !loading && session) {
       router.replace("/(tabs)/pickups");
     }
-  }, [loading, session]);
+  }, [checkingLanguage, loading, session]);
 
-  if (loading) {
+  if (loading || checkingLanguage) {
     return (
       <View style={styles.container}>
-        <Text style={{ color: "#ffffff" }}>Loading...</Text>
+        <Text style={{ color: "#ffffff", fontFamily: "AfacadBold" }}>
+          Loading...
+        </Text>
       </View>
     );
   }
@@ -83,6 +102,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#0B2AAE",
     fontSize: 18,
-    fontWeight: "700",
+    fontFamily: "AfacadBold",
   },
 });

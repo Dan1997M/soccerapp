@@ -31,6 +31,22 @@ export async function createRental(input: {
   if (userError) throw userError;
   if (!user) throw new Error("You must be logged in.");
 
+  const { data: existingRental, error: existingError } = await supabase
+    .from("rentals")
+    .select("id")
+    .eq("location", input.location)
+    .eq("rental_date", input.rental_date)
+    .eq("field_name", input.field_name)
+    .eq("start_time", input.start_time)
+    .eq("status", "booked")
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  if (existingRental) {
+    throw new Error("This field time is no longer available.");
+  }
+
   const { data, error } = await supabase
     .from("rentals")
     .insert({
@@ -47,7 +63,13 @@ export async function createRental(input: {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error("This field time is no longer available.");
+    }
+
+    throw error;
+  }
 
   return data as Rental;
 }
@@ -93,4 +115,22 @@ export async function cancelRental(rentalId: string) {
   if (error) throw error;
 
   return data as Rental;
+}
+
+export async function fetchBookedRentalSlots(input: {
+  location: string;
+  rental_date: string;
+  field_name: string;
+}) {
+  const { data, error } = await supabase
+    .from("rentals")
+    .select("start_time")
+    .eq("location", input.location)
+    .eq("rental_date", input.rental_date)
+    .eq("field_name", input.field_name)
+    .eq("status", "booked");
+
+  if (error) throw error;
+
+  return (data ?? []).map((item) => item.start_time);
 }
